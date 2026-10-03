@@ -8,4 +8,4 @@ There are 3 main features -
 2. DSA battles, cause why not
 3. Leaderboard (_friendly_)
 
-The Flash website is built using React with the backend running in flask. The backend is hosted on AWS using the free credits given to a new account.
+The Flash website is built using React with the backend running in fastify (to keep both components in a single language to reduce overhead). The backend is hosted on AWS using the free credits given to a new account.
