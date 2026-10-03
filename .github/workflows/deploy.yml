@@ -1,0 +1,59 @@
+name: deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # adds a manual "Run workflow" button
+
+concurrency: deploy # two quick pushes never deploy at the same time
+
+permissions:
+  id-token: write # lets the job request a GitHub OIDC token (needed for AWS)
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      KEY: ${{ github.sha }}.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+
+      # Trade the OIDC token for temporary AWS creds as DeployRole
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
+          aws-region: ap-south-1
+
+      - name: Upload code to S3
+        run: |
+          git archive --format=tar.gz -o app.tgz HEAD
+          aws s3 cp app.tgz "s3://${{ vars.ARTIFACT_BUCKET }}/$KEY"
+
+      - name: Run deploy on the instance via SSM
+        run: |
+          script="set -e
+          /snap/bin/aws s3 cp s3://${{ vars.ARTIFACT_BUCKET }}/$KEY /tmp/app.tgz
+          rm -rf /opt/flash/app && mkdir -p /opt/flash/app
+          tar xzf /tmp/app.tgz -C /opt/flash/app
+          cd /opt/flash/app
+          docker compose -p flash --env-file /opt/flash/.env up -d --build --remove-orphans
+          docker image prune -f"
+
+          cid=$(aws ssm send-command --instance-ids "${{ vars.INSTANCE_ID }}" \
+            --document-name AWS-RunShellScript \
+            --parameters "$(jq -n --arg s "$script" '{commands: [$s], executionTimeout: ["1800"]}')" \
+            --query Command.CommandId --output text)
+
+          for i in $(seq 90); do
+            sleep 10
+            status=$(aws ssm get-command-invocation --command-id "$cid" \
+              --instance-id "${{ vars.INSTANCE_ID }}" --query Status --output text 2>/dev/null || echo Pending)
+            echo "$status"
+            case "$status" in
+              Success) exit 0 ;;
+              Failed|Cancelled|TimedOut)
+                aws ssm get-command-invocation --command-id "$cid" --instance-id "${{ vars.INSTANCE_ID }}" \
+                  --query '[StandardOutputContent,StandardErrorContent]' --output text
+                exit 1 ;;
+            esac
+          done
+          exit 1
