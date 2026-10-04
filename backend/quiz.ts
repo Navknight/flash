@@ -49,7 +49,6 @@ type Room = {
   timer?: NodeJS.Timeout;
 };
 
-// NOTE: rooms live in memory, so a restart ends running races. Fine for one server.
 const rooms = new Map<string, Room>();
 
 function shuffle<T>(a: T[]): T[] {

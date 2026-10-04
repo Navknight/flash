@@ -2,10 +2,14 @@ import { Server } from "socket.io";
 import { buildApp, pool, verifyToken } from "./app.ts";
 import { registerQuiz } from "./quiz.ts";
 
+import { registerDuels } from "./duels.ts";
+import problems from "./problems.json" with { type: "json" };
+
 const fastify = buildApp();
 
 const io = new Server(fastify.server);
 registerQuiz(io);
+registerDuels(io);
 
 io.use(async (socket, next) => {
   try {
@@ -55,6 +59,36 @@ await pool.query(`create table if not exists race_results (
     total int not null,
     created_at timestamptz not null default now()
   )`);
+
+await pool.query(`create table if not exists problems (
+    id serial primary key,
+    slug text unique not null,
+    title text not null,
+    difficulty text not null,
+    description text not null,
+    samples int not null,
+    tests jsonb not null
+  )`);
+await pool.query(`create table if not exists matches (
+    id text primary key,
+    problem_id int references problems(id),
+    ranked boolean not null,
+    player_a text references users(uid),
+    player_b text references users(uid),
+    winner text,
+    elo_a int,
+    elo_b int,
+    created_at timestamptz not null default now()
+  )`);
+
+await pool.query(
+  `insert into problems (slug, title, difficulty, description, samples, tests)
+     select * from jsonb_to_recordset($1::jsonb)
+       as x(slug text, title text, difficulty text, description text, samples int, tests jsonb)
+     on conflict (slug) do update set title = excluded.title, difficulty = excluded.difficulty,
+       description = excluded.description, samples = excluded.samples, tests = excluded.tests`,
+  [JSON.stringify(problems)],
+);
 
 fastify.listen(
   {

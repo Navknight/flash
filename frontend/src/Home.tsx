@@ -101,9 +101,14 @@ const Home = () => {
       )}
 
       {user && (
-        <Link to="/upload" className="underline">
-          Upload a deck
-        </Link>
+        <div className="flex gap-4">
+          <Link to="/upload" className="underline">
+            Upload a deck
+          </Link>
+          <Link to="/duels" className="underline">
+            Duels
+          </Link>
+        </div>
       )}
       <Table>
         <TableHeader>
