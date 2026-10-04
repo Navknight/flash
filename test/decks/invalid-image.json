@@ -1,0 +1,8 @@
+{
+  "cards": [
+    { "prompt": "a", "answer": "b" },
+    { "prompt": "c", "answer": "d" },
+    { "prompt": "e", "answer": "f" },
+    { "prompt": "g", "answer": "h", "imageUrl": "javascript:alert(1)" }
+  ]
+}

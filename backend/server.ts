@@ -27,6 +27,22 @@ await pool.query(`
     )
   `);
 
+await pool.query(` create table if not exists decks (
+    id serial primary key,
+    owner_uid text not null references users(uid),
+    title text not null,
+    subject text not null,
+    created_at timestamptz not null default now()
+    )`);
+await pool.query(`  create table if not exists cards (
+    id serial primary key,
+    deck_id int not null references decks(id) on delete cascade,
+    prompt text not null,
+    answer text not null,
+    choices jsonb,      -- 3 wrong answers, or null = flashcard
+    image_url text
+    )`);
+
 fastify.listen(
   {
     host: "0.0.0.0",

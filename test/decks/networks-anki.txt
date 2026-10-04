@@ -1,0 +1,7 @@
+#separator:tab
+#html:true
+What does <b>TCP</b> stand for?	Transmission Control Protocol
+Default port for HTTPS?	443
+Layer of IP in the OSI model?<br><img src="osi.png">	Network layer
+What does DNS do?	Resolves domain names to IP addresses
+What is a subnet mask?	Splits an IP address into network and host parts

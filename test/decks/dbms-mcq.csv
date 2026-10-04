@@ -1,0 +1,5 @@
+Which normal form removes partial dependencies?,2NF,1NF,3NF,BCNF
+Which SQL clause filters grouped rows?,HAVING,WHERE,ORDER BY,LIMIT
+Which property guarantees committed data survives a crash?,Durability,Atomicity,Consistency,Isolation
+Which index structure do most databases use by default?,B-tree,Hash table,Linked list,Heap
+Which join returns only matching rows from both tables?,INNER JOIN,LEFT JOIN,FULL OUTER JOIN,CROSS JOIN

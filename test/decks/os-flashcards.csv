@@ -1,0 +1,6 @@
+What is a process?,A program in execution
+What is a thread?,A unit of CPU scheduling within a process
+What is a deadlock?,Processes waiting on each other forever
+What is paging?,Splitting memory into fixed-size pages
+What is a context switch?,Saving one process state and loading another
+What is a semaphore?,A counter used to control access to a shared resource

@@ -9,11 +9,36 @@ import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { auth } from "./firebase";
 
+import { Link } from "react-router";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 const Home = () => {
   const [stat, setStat] = useState("checking...");
   const [sock, setSock] = useState("-1");
   const [user, setUser] = useState<User | null>(null);
   const [me, setMe] = useState<{ name: string; elo: number } | null>(null);
+
+  type Deck = {
+    id: number;
+    title: string;
+    subject: string;
+    owner: string;
+    cards: number;
+  };
+  const [decks, setDecks] = useState<Deck[]>([]);
+  useEffect(() => {
+    fetch("/api/decks")
+      .then((r) => r.json())
+      .then(setDecks);
+  }, []);
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
@@ -74,6 +99,34 @@ const Home = () => {
           Sign in with Google
         </button>
       )}
+
+      {user && (
+        <Link to="/upload" className="underline">
+          Upload a deck
+        </Link>
+      )}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Title</TableHead>
+            <TableHead>Subject</TableHead>
+            <TableHead>Cards</TableHead>
+            <TableHead>By</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {decks.map((d) => (
+            <TableRow key={d.id}>
+              <TableCell className="font-medium">{d.title}</TableCell>
+              <TableCell>
+                <Badge variant="secondary">{d.subject}</Badge>
+              </TableCell>
+              <TableCell>{d.cards}</TableCell>
+              <TableCell className="text-muted-foreground">{d.owner}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </>
   );
 };

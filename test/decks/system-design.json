@@ -1,0 +1,9 @@
+{
+  "cards": [
+    { "prompt": "What does a load balancer do?", "answer": "Distributes traffic across servers" },
+    { "prompt": "What is horizontal scaling?", "answer": "Adding more machines" },
+    { "prompt": "What is a CDN?", "answer": "A network of edge servers caching static content", "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/NCDN_-_CDN.png/640px-NCDN_-_CDN.png" },
+    { "prompt": "Which consistency model does CAP's 'C' refer to?", "answer": "Linearizability", "choices": ["Eventual consistency", "Causal consistency", "Read-your-writes"] },
+    { "prompt": "What is sharding?", "answer": "Splitting data across databases by a key" }
+  ]
+}
