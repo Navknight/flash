@@ -8,6 +8,7 @@ concurrency: deploy # two quick pushes never deploy at the same time
 
 permissions:
   id-token: write # lets the job request a GitHub OIDC token (needed for AWS)
+  contents: read
 
 jobs:
   deploy:

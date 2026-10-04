@@ -135,7 +135,7 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: repo:Navknight/flash:ref:refs/heads/main
+                token.actions.githubusercontent.com:sub: repo:Navknight@75202220/flash@1341803503:ref:refs/heads/main
       Policies:
         - PolicyName: deploy
           PolicyDocument:
