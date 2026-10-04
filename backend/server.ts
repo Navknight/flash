@@ -1,10 +1,31 @@
 import { Server } from "socket.io";
-import { buildApp } from "./app.ts";
+import { buildApp, pool, verifyToken } from "./app.ts";
 
 const fastify = buildApp();
 
 const io = new Server(fastify.server);
+
+io.use(async (socket, next) => {
+  try {
+    const user = await verifyToken(socket.handshake.auth.token);
+    socket.data.uid = user.uid;
+    next();
+  } catch {
+    next(new Error("Unauthorized"));
+  }
+});
+
 io.on("connection", (socket) => socket.emit("hello", socket.id));
+
+await pool.query(`
+    create table if not exists users (
+      uid text primary key,
+      name text not null,
+      email text,
+      elo int not null default 1200,
+      created_at timestamptz not null default now()
+    )
+  `);
 
 fastify.listen(
   {
