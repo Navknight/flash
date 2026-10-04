@@ -68,6 +68,21 @@ export const buildApp = () => {
     },
   );
 
+  fastify.get("/api/leaderboard", async () => {
+    const { rows } = await pool.query(
+      `select u.uid, u.name, u.elo,
+                  count(m.id)::int as games,
+                  count(m.id) filter (where m.winner = u.uid)::int as wins,
+                  count(m.id) filter (where m.winner is not null and m.winner <> u.uid)::int as losses
+           from users u
+           join matches m on m.ranked and u.uid in (m.player_a, m.player_b)
+           group by u.uid
+           order by u.elo desc, wins desc
+           limit 50`,
+    );
+    return rows;
+  });
+
   const deckBody = {
     type: "object",
     required: ["title", "subject", "cards"],

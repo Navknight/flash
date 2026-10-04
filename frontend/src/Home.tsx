@@ -1,16 +1,8 @@
-import {
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-  type User,
-} from "firebase/auth";
 import { useEffect, useState } from "react";
-import { io } from "socket.io-client";
-import { auth } from "./firebase";
-
 import { Link } from "react-router";
+import { useUser } from "./firebase";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -20,102 +12,42 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const Home = () => {
-  const [stat, setStat] = useState("checking...");
-  const [sock, setSock] = useState("-1");
-  const [user, setUser] = useState<User | null>(null);
-  const [me, setMe] = useState<{ name: string; elo: number } | null>(null);
+type Deck = {
+  id: number;
+  title: string;
+  subject: string;
+  owner: string;
+  cards: number;
+};
 
-  type Deck = {
-    id: number;
-    title: string;
-    subject: string;
-    owner: string;
-    cards: number;
-  };
+const Home = () => {
+  const user = useUser();
   const [decks, setDecks] = useState<Deck[]>([]);
+
   useEffect(() => {
     fetch("/api/decks")
       .then((r) => r.json())
       .then(setDecks);
   }, []);
 
-  useEffect(() => onAuthStateChanged(auth, setUser), []);
-
-  useEffect(() => {
-    if (!user) return setMe(null);
-
-    const load = async () => {
-      const token = await user.getIdToken();
-      const res = await fetch("/api/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) return;
-      setMe(await res.json());
-    };
-    load();
-  }, [user]);
-
-  useEffect(() => {
-    const check = async () => {
-      try {
-        const res = await fetch("/api/health");
-        setStat(res.ok ? "ok" : "down");
-      } catch {
-        setStat("down");
-      }
-    };
-    check();
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    const s = io({
-      auth: (cb) => {
-        user.getIdToken().then((token) => cb({ token }));
-      },
-    });
-    s.on("hello", setSock);
-    return () => {
-      s.disconnect();
-    };
-  }, [user]);
-
   return (
-    <>
-      <p>
-        API: {stat} · socket: {sock}
-      </p>
-      {user ? (
-        <>
-          <p>{me ? `${me.name} · Elo ${me.elo}` : "loading..."}</p>
-          <button onClick={() => signOut(auth)}>Log out</button>
-        </>
-      ) : (
-        <button onClick={() => signInWithPopup(auth, new GoogleAuthProvider())}>
-          Sign in with Google
-        </button>
-      )}
-
-      {user && (
-        <div className="flex gap-4">
-          <Link to="/upload" className="underline">
-            Upload a deck
-          </Link>
-          <Link to="/duels" className="underline">
-            Duels
-          </Link>
+    <div className="mx-auto mt-10 max-w-5xl px-4">
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Decks</h1>
+          <p className="text-muted-foreground">
+            Pick a deck and race other students through it.
+          </p>
         </div>
-      )}
+        {user && <Button render={<Link to="/upload" />}>Upload a deck</Button>}
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Title</TableHead>
             <TableHead>Subject</TableHead>
-            <TableHead>Cards</TableHead>
+            <TableHead className="text-right">Cards</TableHead>
             <TableHead>By</TableHead>
           </TableRow>
         </TableHeader>
@@ -130,13 +62,13 @@ const Home = () => {
               <TableCell>
                 <Badge variant="secondary">{d.subject}</Badge>
               </TableCell>
-              <TableCell>{d.cards}</TableCell>
+              <TableCell className="text-right font-mono">{d.cards}</TableCell>
               <TableCell className="text-muted-foreground">{d.owner}</TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-    </>
+    </div>
   );
 };
 

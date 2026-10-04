@@ -1,6 +1,13 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { useEffect, useState } from "react";
+import { onAuthStateChanged, type User } from "firebase/auth";
 
+export function useUser() {
+  const [user, setUser] = useState<User | null>(auth.currentUser);
+  useEffect(() => onAuthStateChanged(auth, setUser), []);
+  return user;
+}
 const firebaseConfig = {
   apiKey: "AIzaSyAYvENswnVkylB2x4sl8O6k_tw4yHruaWQ",
   authDomain: "flash-57b36.firebaseapp.com",
