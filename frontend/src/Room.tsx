@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { io, type Socket } from "socket.io-client";
 import { auth } from "./firebase";
@@ -41,6 +41,15 @@ export default function Room() {
   const [secs, setSecs] = useState(0);
   const [error, setError] = useState("");
 
+  type Best = { uid: string; name: string; best: number; games: number };
+  const [board, setBoard] = useState<Best[]>([]);
+  const loadBoard = useCallback(() => {
+    fetch(`/api/decks/${deckId}/leaderboard`)
+      .then((r) => r.json())
+      .then(setBoard);
+  }, [deckId]);
+  useEffect(loadBoard, [loadBoard]);
+
   useEffect(() => {
     const s = io({
       auth: (cb) => {
@@ -64,11 +73,12 @@ export default function Room() {
     s.on("end", (final: PlayerInfo[]) => {
       setStandings(final);
       setQ(null);
+      loadBoard();
     });
     return () => {
       s.disconnect();
     };
-  }, [deckId]);
+  }, [deckId, loadBoard]);
 
   useEffect(() => {
     if (!snap || snap.phase === "lobby") return;
@@ -179,6 +189,14 @@ export default function Room() {
               >
                 Leave
               </Button>
+              {snap.phase === "lobby" && snap.players.length === 1 && (
+                <Button
+                  className="mt-4 self-start"
+                  onClick={() => socket.current?.emit("solo")}
+                >
+                  Play solo
+                </Button>
+              )}
             </CardContent>
           </>
         )}
@@ -206,6 +224,28 @@ export default function Room() {
                   />
                 </div>
               )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Deck leaderboard</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2 text-sm">
+          {board.length === 0 && (
+            <p className="text-muted-foreground">No runs yet, be the first.</p>
+          )}
+          {board.map((b, i) => (
+            <div key={b.uid} className="flex justify-between">
+              <span>
+                {i + 1}. {b.name}
+              </span>
+              <span className="font-mono">
+                {b.best}{" "}
+                <span className="text-muted-foreground">· {b.games}g</span>
+              </span>
             </div>
           ))}
         </CardContent>

@@ -158,6 +158,21 @@ export function registerQuiz(io: Server) {
       "end",
       snapshot(room).players.filter((p) => p.racing),
     );
+    const racers = snapshot(room).players.filter((p) => p.racing);
+    pool
+      .query(
+        `insert into race_results (deck_id, uid, score, correct, total)
+             select $1, x.uid, x.score, x.correct, $5
+             from unnest($2::text[], $3::int[], $4::int[]) as x(uid, score, correct)`,
+        [
+          Number(id.split(":")[1]),
+          racers.map((p) => p.uid),
+          racers.map((p) => p.score),
+          racers.map((p) => p.correct),
+          room.questions.length,
+        ],
+      )
+      .catch((err) => console.error("saving race results failed", err));
     for (const [uid, p] of room.players) {
       if (p.left) room.players.delete(uid);
       else p.racing = false;
@@ -202,7 +217,12 @@ export function registerQuiz(io: Server) {
       const p = room.players.get(uid)!;
       if (room.phase === "race" && p.racing && !p.done) ask(room, p); // resume after refresh
     });
-
+    socket.on("solo", () => {
+      const room = rooms.get(id);
+      if (!room || room.phase !== "lobby") return; // 2+ players means a countdown is already running
+      room.phase = "countdown";
+      startRace(id); // starts immediately
+    });
     socket.on(
       "answer",
       ({ index, option }: { index: number; option: string }) => {

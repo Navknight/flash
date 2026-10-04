@@ -47,6 +47,27 @@ export const buildApp = () => {
     return rows[0];
   });
 
+  fastify.get<{ Params: { id: number } }>(
+    "/api/decks/:id/leaderboard",
+    {
+      schema: {
+        params: { type: "object", properties: { id: { type: "integer" } } },
+      },
+    },
+    async (request) => {
+      const { rows } = await pool.query(
+        `select u.uid, u.name, max(r.score)::int as best, count(*)::int as games
+             from race_results r join users u on u.uid = r.uid
+             where r.deck_id = $1
+             group by u.uid, u.name
+             order by best desc
+             limit 10`,
+        [request.params.id],
+      );
+      return rows;
+    },
+  );
+
   const deckBody = {
     type: "object",
     required: ["title", "subject", "cards"],
