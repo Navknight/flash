@@ -144,7 +144,7 @@ export default function Duels() {
     tick();
     const t = setInterval(tick, 500);
     return () => clearInterval(t);
-  }, [match, match.matchId, phase]);
+  }, [match?.matchId, phase]);
 
   const me = auth.currentUser?.uid;
   const emit = (event: string, arg?: unknown) =>
