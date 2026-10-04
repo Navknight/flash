@@ -1,14 +1,17 @@
 import { Server } from "socket.io";
 import { buildApp, pool, verifyToken } from "./app.ts";
+import { registerQuiz } from "./quiz.ts";
 
 const fastify = buildApp();
 
 const io = new Server(fastify.server);
+registerQuiz(io);
 
 io.use(async (socket, next) => {
   try {
     const user = await verifyToken(socket.handshake.auth.token);
     socket.data.uid = user.uid;
+    socket.data.name = user.name ?? "anon";
     next();
   } catch {
     next(new Error("Unauthorized"));

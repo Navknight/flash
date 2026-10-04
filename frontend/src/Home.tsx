@@ -117,7 +117,11 @@ const Home = () => {
         <TableBody>
           {decks.map((d) => (
             <TableRow key={d.id}>
-              <TableCell className="font-medium">{d.title}</TableCell>
+              <TableCell className="font-medium">
+                <Link to={`/room/${d.id}`} className="hover:underline">
+                  {d.title}
+                </Link>
+              </TableCell>
               <TableCell>
                 <Badge variant="secondary">{d.subject}</Badge>
               </TableCell>
