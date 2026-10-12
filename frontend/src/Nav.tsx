@@ -43,6 +43,9 @@ export default function Nav() {
           <NavLink to="/leaderboard" className={link}>
             Leaderboard
           </NavLink>
+          <NavLink to="/boss-raids" className={"link"}>
+            Boss Raids
+          </NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-3">
           {user ? (
