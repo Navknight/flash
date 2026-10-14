@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 import { buildApp, pool, verifyToken } from "./app.ts";
 import { registerQuiz } from "./quiz.ts";
-
+import { registerRaids, setupRaidTables } from "./raids.ts";
 import { registerDuels } from "./duels.ts";
 import problems from "./problems.json" with { type: "json" };
 
@@ -10,6 +10,7 @@ const fastify = buildApp();
 const io = new Server(fastify.server);
 registerQuiz(io);
 registerDuels(io);
+registerRaids(io, pool, verifyToken);
 
 io.use(async (socket, next) => {
   try {
@@ -89,6 +90,8 @@ await pool.query(
        description = excluded.description, samples = excluded.samples, tests = excluded.tests`,
   [JSON.stringify(problems)],
 );
+
+await setupRaidTables(pool);
 
 fastify.listen(
   {
