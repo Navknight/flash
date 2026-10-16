@@ -28,6 +28,12 @@ type Runtime = {
 };
 const runtimes = new Map<string, Runtime>();
 
+// Recovery after a restart must wait until the tables exist (matters on a fresh database).
+let markTablesReady: () => void = () => {};
+const tablesReady = new Promise<void>((resolve) => {
+  markTablesReady = resolve;
+});
+
 // ---------------------------------------------------------------- tables
 
 export async function setupRaidTables(db: Db) {
@@ -76,6 +82,8 @@ export async function setupRaidTables(db: Db) {
     answered_at timestamptz not null default now(),
     unique (raid_code, uid, question_id)
   )`);
+
+  markTablesReady();
 }
 
 // ---------------------------------------------------------------- helpers
@@ -243,10 +251,13 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
   }
 
   // Server restarted mid-raid? Re-arm the timers (or finish raids that ran out meanwhile).
-  db.query(
-    `select code, duration_sec, extract(epoch from started_at) * 1000 as started_ms
-       from raids where status = 'active'`,
-  )
+  tablesReady
+    .then(() =>
+      db.query(
+        `select code, duration_sec, extract(epoch from started_at) * 1000 as started_ms
+           from raids where status = 'active'`,
+      ),
+    )
     .then(async ({ rows }) => {
       for (const r of rows) {
         const endsAt = Number(r.started_ms) + r.duration_sec * 1000;
