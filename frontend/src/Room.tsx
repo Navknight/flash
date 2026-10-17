@@ -26,6 +26,12 @@ type Question = {
   options: string[];
   imageUrl: string | null;
 };
+type Answered = {
+  prompt: string;
+  picked: string;
+  answer: string;
+  correct: boolean;
+};
 
 export default function Room() {
   const { deckId } = useParams();
@@ -40,6 +46,9 @@ export default function Room() {
   const [standings, setStandings] = useState<PlayerInfo[] | null>(null);
   const [secs, setSecs] = useState(0);
   const [error, setError] = useState("");
+
+  const [history, setHistory] = useState<Answered[]>([]);
+  const pending = useRef<{ prompt: string; picked: string } | null>(null);
 
   type Best = { uid: string; name: string; best: number; games: number };
   const [board, setBoard] = useState<Best[]>([]);
@@ -68,8 +77,13 @@ export default function Room() {
       setPicked(null);
       setResult(null);
       setStandings(null);
+      if (next.index === 0) setHistory([]);
     });
-    s.on("result", setResult);
+    s.on("result", (r: { correct: boolean; answer: string }) => {
+      setResult(r);
+      const p = pending.current;
+      if (p) setHistory((h) => [...h, { ...p, ...r }]);
+    });
     s.on("end", (final: PlayerInfo[]) => {
       setStandings(final);
       setQ(null);
@@ -95,6 +109,7 @@ export default function Room() {
   const pick = (option: string) => {
     if (picked || !q) return;
     setPicked(option);
+    pending.current = { prompt: q.prompt, picked: option };
     socket.current?.emit("answer", { index: q.index, option });
   };
 
@@ -117,6 +132,7 @@ export default function Room() {
     );
 
   const racing = snap.phase === "race" && me?.racing && !me.done && q;
+  const missed = history.filter((h) => !h.correct);
 
   return (
     <div className="mx-auto mt-8 grid max-w-5xl gap-6 px-4 md:grid-cols-[1fr_260px]">
@@ -182,6 +198,24 @@ export default function Room() {
                   ))}
                 </>
               )}
+
+              {history.length > 0 && (
+                <div className="mt-4 flex flex-col gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    {missed.length === 0
+                      ? "Perfect run, nothing to review."
+                      : `Review: you missed ${missed.length} of ${history.length}`}
+                  </p>
+                  {missed.map((m, i) => (
+                    <div key={i} className="rounded border p-3 text-sm">
+                      <p className="font-medium">{m.prompt}</p>
+                      <p className="text-red-500">Your answer: {m.picked}</p>
+                      <p className="text-green-600">Correct answer: {m.answer}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <Button
                 variant="outline"
                 className="mt-4 self-start"
