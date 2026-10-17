@@ -18,6 +18,7 @@ type Ack = (response: Record<string, unknown>) => void;
 class UserError extends Error {}
 
 const ANSWER_WINDOW_SEC = 20; // time window for the speed bonus
+const BOSS_MODELS = ["dragon", "orc", "zombie"]; // must match the .glb files in frontend/public/models
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
 
 type Runtime = {
@@ -49,6 +50,11 @@ export async function setupRaidTables(db: Db) {
     started_at timestamptz,
     ended_at timestamptz
   )`);
+
+  // added after the first version: which 3D boss the raid uses
+  await db.query(
+    `alter table raids add column if not exists boss_model text not null default 'dragon'`,
+  );
 
   await db.query(`create table if not exists raid_questions (
     id serial primary key,
@@ -107,6 +113,7 @@ function newCode(): string {
 function validateCreate(p: any) {
   if (!isStr(p?.title, 1, 80)) throw new UserError("Title must be 1-80 characters");
   if (!isStr(p?.bossName, 1, 60)) throw new UserError("Boss name must be 1-60 characters");
+  if (!BOSS_MODELS.includes(p?.bossModel)) throw new UserError("Pick a boss");
   if (!isInt(p?.bossHp) || p.bossHp < 100 || p.bossHp > 1_000_000)
     throw new UserError("Boss HP must be between 100 and 1,000,000");
   if (!isInt(p?.durationMin) || p.durationMin < 1 || p.durationMin > 1440)
@@ -138,6 +145,7 @@ function validateCreate(p: any) {
   return {
     title: p.title.trim() as string,
     bossName: p.bossName.trim() as string,
+    bossModel: p.bossModel as string,
     bossHp: p.bossHp as number,
     durationSec: p.durationMin * 60,
     questions,
@@ -198,7 +206,7 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
 
   async function snapshot(code: string, uid: string) {
     const { rows } = await db.query(
-      `select code, title, boss_name, boss_max_hp, duration_sec, status, host_uid,
+      `select code, title, boss_name, boss_model, boss_max_hp, duration_sec, status, host_uid,
               extract(epoch from started_at) * 1000 as started_ms,
               (select count(*)::int from raid_questions q where q.raid_code = raids.code) as question_count
          from raids where code = $1`,
@@ -212,6 +220,7 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
       code: raid.code as string,
       title: raid.title as string,
       bossName: raid.boss_name as string,
+      bossModel: raid.boss_model as string,
       bossMaxHp: raid.boss_max_hp as number,
       hpRemaining: Math.max(0, raid.boss_max_hp - dealt),
       status: raid.status as string,
@@ -297,10 +306,10 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
         for (let i = 0; i < 5 && !code; i++) {
           const candidate = newCode();
           const { rows } = await db.query(
-            `insert into raids (code, host_uid, title, boss_name, boss_max_hp, duration_sec)
-             values ($1, $2, $3, $4, $5, $6)
+            `insert into raids (code, host_uid, title, boss_name, boss_model, boss_max_hp, duration_sec)
+             values ($1, $2, $3, $4, $5, $6, $7)
              on conflict (code) do nothing returning code`,
-            [candidate, uid, v.title, v.bossName, v.bossHp, v.durationSec],
+            [candidate, uid, v.title, v.bossName, v.bossModel, v.bossHp, v.durationSec],
           );
           if (rows.length) code = candidate;
         }

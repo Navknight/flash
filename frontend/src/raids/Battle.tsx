@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type {
@@ -8,6 +8,9 @@ import type {
   Question,
   RaidState,
 } from "./types";
+
+// three.js is big, so it only downloads when a battle opens
+const BossScene = lazy(() => import("./BossScene"));
 
 type Props = {
   state: RaidState;
@@ -30,6 +33,8 @@ export default function Battle({ state, feed, myUid, next, answer }: Props) {
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const over = state.status === "won" || state.status === "lost";
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 250);
@@ -59,12 +64,14 @@ export default function Battle({ state, feed, myUid, next, answer }: Props) {
     }
   };
 
-  // fetch the first question when the battle opens
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => void load(), []);
+  // fetch the first question when the battle opens (not for a raid that already ended)
+  useEffect(() => {
+    if (!over) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pick = async (i: number) => {
-    if (!question || busy || result) return;
+    if (!question || busy || result || over) return;
     setBusy(true);
     setPicked(i);
     setError("");
@@ -84,6 +91,8 @@ export default function Battle({ state, feed, myUid, next, answer }: Props) {
   const hpPct = state.bossMaxHp
     ? Math.max(0, (100 * state.hpRemaining) / state.bossMaxHp)
     : 0;
+  const dead = state.hpRemaining <= 0;
+  const enraged = hpPct < 30 && !dead;
   const speedLeft =
     question && !result
       ? Math.max(0, 1 - (now - shownAt) / (secondsAllowed * 1000))
@@ -94,16 +103,23 @@ export default function Battle({ state, feed, myUid, next, answer }: Props) {
   );
 
   return (
-    <div className="mx-auto mt-6 flex max-w-5xl flex-col gap-4 px-4 pb-10">
+    <div className="mx-auto mt-6 flex max-w-6xl flex-col gap-4 px-4 pb-10">
       <Card>
         <CardContent className="flex flex-col gap-3 py-5">
           <div className="flex items-baseline justify-between">
-            <h1 className="text-2xl font-bold">{state.bossName}</h1>
+            <h1 className="text-2xl font-bold">
+              {state.bossName}
+              {enraged && (
+                <span className="ml-3 text-sm font-semibold text-red-500">
+                  ENRAGED
+                </span>
+              )}
+            </h1>
             <span className="font-mono text-lg">{clock(secsLeft)}</span>
           </div>
           <div className="h-5 overflow-hidden rounded bg-muted">
             <div
-              className="h-full bg-red-500 transition-all duration-500"
+              className={`h-full transition-all duration-500 ${enraged ? "bg-red-600" : "bg-red-500"}`}
               style={{ width: `${hpPct}%` }}
             />
           </div>
@@ -115,100 +131,125 @@ export default function Battle({ state, feed, myUid, next, answer }: Props) {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="md:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Your attack</span>
-                <span className="text-sm font-normal text-muted-foreground">
-                  {me?.answered ?? 0} / {state.questionCount} answered
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {error && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm text-red-500">{error}</p>
-                  <Button variant="outline" onClick={load}>
-                    Try again
-                  </Button>
-                </div>
-              )}
+        {/* 3D scene, with the question card floating over its bottom edge on desktop */}
+        <div className="relative md:col-span-2">
+          <Suspense
+            fallback={
+              <div className="flex h-[340px] items-center justify-center rounded-lg border text-muted-foreground md:h-[600px]">
+                Summoning the boss...
+              </div>
+            }
+          >
+            <BossScene
+              model={state.bossModel}
+              dead={dead}
+              enraged={enraged}
+              feed={feed}
+              players={state.players}
+              myUid={myUid}
+            />
+          </Suspense>
 
-              {!question && !done && !error && (
-                <p className="animate-pulse text-muted-foreground">
-                  Loading your question...
-                </p>
-              )}
+          <div className="mt-3 md:absolute md:inset-x-0 md:bottom-0 md:mt-0 md:p-3">
+            <Card className="bg-background/85 backdrop-blur">
+              <CardContent className="flex flex-col gap-3 py-4">
+                {over && (
+                  <p className="py-4 text-center text-lg font-semibold">
+                    {state.status === "won"
+                      ? "The boss is defeated!"
+                      : "Time's up. The boss survived."}
+                  </p>
+                )}
 
-              {done && (
-                <p className="py-6 text-center text-muted-foreground">
-                  You've answered every question. Stay and cheer on the party
-                  while they finish the boss!
-                </p>
-              )}
-
-              {question && (
-                <>
-                  <p className="text-lg font-medium">{question.prompt}</p>
-
-                  {!result && (
-                    <div>
-                      <div className="h-1.5 overflow-hidden rounded bg-muted">
-                        <div
-                          className="h-full bg-primary"
-                          style={{ width: `${speedLeft * 100}%` }}
-                        />
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Answer fast for bonus damage
-                      </p>
-                    </div>
-                  )}
-
+                {!over && error && (
                   <div className="flex flex-col gap-2">
-                    {question.choices.map((c, i) => {
-                      const tone = result
-                        ? i === result.correctIndex
-                          ? "border-green-500 text-green-500"
-                          : i === picked
-                            ? "border-red-500 text-red-500"
-                            : ""
-                        : "";
-                      return (
-                        <Button
-                          key={i}
-                          variant="outline"
-                          className={`h-auto justify-start whitespace-normal py-3 text-left ${tone}`}
-                          onClick={() => pick(i)}
-                        >
-                          <span className="mr-2 font-mono text-muted-foreground">
-                            {String.fromCharCode(65 + i)}
-                          </span>
-                          {c}
-                        </Button>
-                      );
-                    })}
+                    <p className="text-sm text-red-500">{error}</p>
+                    <Button variant="outline" onClick={load}>
+                      Try again
+                    </Button>
                   </div>
+                )}
 
-                  {result && (
-                    <div className="flex items-center justify-between">
-                      <p
-                        className={
-                          result.correct ? "text-green-500" : "text-red-500"
-                        }
-                      >
-                        {result.correct
-                          ? `Direct hit! ${result.damage} damage`
-                          : "Missed, no damage"}
-                      </p>
-                      <Button onClick={load}>Next question</Button>
+                {!over && !question && !done && !error && (
+                  <p className="animate-pulse text-muted-foreground">
+                    Loading your question...
+                  </p>
+                )}
+
+                {!over && done && (
+                  <p className="py-4 text-center text-muted-foreground">
+                    You've answered every question. Stay and cheer on the party
+                    while they finish the boss!
+                  </p>
+                )}
+
+                {!over && question && (
+                  <>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-base font-medium">{question.prompt}</p>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {me?.answered ?? 0}/{state.questionCount}
+                      </span>
                     </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+
+                    {!result && (
+                      <div>
+                        <div className="h-1.5 overflow-hidden rounded bg-muted">
+                          <div
+                            className="h-full bg-primary"
+                            style={{ width: `${speedLeft * 100}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Answer fast for bonus damage
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {question.choices.map((c, i) => {
+                        const tone = result
+                          ? i === result.correctIndex
+                            ? "border-green-500 text-green-500"
+                            : i === picked
+                              ? "border-red-500 text-red-500"
+                              : ""
+                          : "";
+                        return (
+                          <Button
+                            key={i}
+                            variant="outline"
+                            className={`h-auto justify-start whitespace-normal py-2 text-left text-sm ${tone}`}
+                            onClick={() => pick(i)}
+                          >
+                            <span className="mr-2 font-mono text-muted-foreground">
+                              {String.fromCharCode(65 + i)}
+                            </span>
+                            {c}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    {result && (
+                      <div className="flex items-center justify-between">
+                        <p
+                          className={
+                            result.correct ? "text-green-500" : "text-red-500"
+                          }
+                        >
+                          {result.correct
+                            ? `Direct hit! ${result.damage} damage`
+                            : "Missed, the fireball fizzles"}
+                        </p>
+                        <Button onClick={load}>Next question</Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <div className="flex flex-col gap-4">

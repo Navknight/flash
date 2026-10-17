@@ -8,10 +8,13 @@ export type Player = {
 
 export type RaidStatus = "lobby" | "active" | "won" | "lost";
 
+export type BossModel = "dragon" | "orc" | "zombie";
+
 export type RaidState = {
   code: string;
   title: string;
   bossName: string;
+  bossModel: BossModel;
   bossMaxHp: number;
   hpRemaining: number;
   status: RaidStatus;
@@ -56,6 +59,7 @@ export type NewQuestion = {
 export type CreateInput = {
   title: string;
   bossName: string;
+  bossModel: BossModel;
   bossHp: number;
   durationMin: number;
   questions: NewQuestion[];

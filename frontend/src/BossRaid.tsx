@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useUser } from "./firebase";
 import { useRaid } from "./raids/useRaid";
@@ -17,6 +17,20 @@ export default function BossRaid() {
   const [error, setError] = useState("");
   const inviteCode = params.get("join");
   const { state, end } = raid;
+
+  // when a raid ends, stay on the battle scene for a moment so the boss death plays
+  const [showResults, setShowResults] = useState(false);
+  useEffect(() => {
+    if (!end) {
+      setShowResults(false);
+      return;
+    }
+    const t = setTimeout(
+      () => setShowResults(true),
+      end.result === "won" ? 3500 : 1500,
+    );
+    return () => clearTimeout(t);
+  }, [end]);
 
   // runs an action and shows its error message instead of crashing
   const run = async (fn: () => Promise<unknown>) => {
@@ -45,7 +59,7 @@ export default function BossRaid() {
   }
 
   // ---------- results ----------
-  if (state && end) {
+  if (state && end && showResults) {
     const won = end.result === "won";
     return (
       <div className="mx-auto mt-10 flex max-w-xl flex-col gap-4 px-4">
@@ -89,7 +103,7 @@ export default function BossRaid() {
   }
 
   // ---------- battle ----------
-  if (state?.status === "active") {
+  if (state && (state.status === "active" || end)) {
     return (
       <Battle
         state={state}

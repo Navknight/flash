@@ -2,7 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import type { CreateInput, NewQuestion } from "./types";
+import type { BossModel, CreateInput, NewQuestion } from "./types";
+
+const BOSSES: { id: BossModel; label: string; name: string }[] = [
+  { id: "dragon", label: "Dragon", name: "The Ancient Dragon" },
+  { id: "orc", label: "Orc", name: "The Orc Warlord" },
+  { id: "zombie", label: "Zombie", name: "The Undead Horror" },
+];
 
 const blank = (): NewQuestion => ({
   prompt: "",
@@ -37,7 +43,8 @@ type Props = {
 
 export default function CreateRaid({ onCreate, onCancel }: Props) {
   const [title, setTitle] = useState("");
-  const [bossName, setBossName] = useState("The Procrastination Dragon");
+  const [bossModel, setBossModel] = useState<BossModel>("dragon");
+  const [bossName, setBossName] = useState("The Ancient Dragon");
   const [bossHp, setBossHp] = useState("2000");
   const [minutes, setMinutes] = useState("30");
   const [questions, setQuestions] = useState<NewQuestion[]>([blank()]);
@@ -73,6 +80,7 @@ export default function CreateRaid({ onCreate, onCancel }: Props) {
       await onCreate({
         title,
         bossName,
+        bossModel,
         bossHp: Number(bossHp),
         durationMin: Number(minutes),
         questions,
@@ -97,6 +105,22 @@ export default function CreateRaid({ onCreate, onCancel }: Props) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
+          <div className="flex gap-2">
+            {BOSSES.map((b) => (
+              <Button
+                key={b.id}
+                type="button"
+                className="flex-1"
+                variant={bossModel === b.id ? "secondary" : "outline"}
+                onClick={() => {
+                  setBossModel(b.id);
+                  setBossName(b.name);
+                }}
+              >
+                {b.label}
+              </Button>
+            ))}
+          </div>
           <Input
             placeholder="Boss name"
             value={bossName}
