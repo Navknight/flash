@@ -113,6 +113,19 @@ export default function Room() {
     socket.current?.emit("answer", { index: q.index, option });
   };
 
+  useEffect(() => {
+    if (!q || picked) return;
+    const onKey = (e: KeyboardEvent) => {
+      const option = q.options[Number(e.key) - 1];
+      if (!option || e.repeat) return;
+      setPicked(option);
+      pending.current = { prompt: q.prompt, picked: option };
+      socket.current?.emit("answer", { index: q.index, option });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [q, picked]);
+
   const color = (opt: string) =>
     !result
       ? opt === picked
@@ -156,17 +169,23 @@ export default function Room() {
               )}
               <p className="text-xl font-semibold">{q.prompt}</p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {q.options.map((opt) => (
+                {q.options.map((opt, i) => (
                   <Button
                     key={opt}
                     variant="secondary"
-                    className={`h-auto whitespace-normal py-3 ${color(opt)}`}
+                    className={`h-auto justify-start whitespace-normal py-3 ${color(opt)}`}
                     onClick={() => pick(opt)}
                   >
+                    <kbd className="mr-2 rounded border px-1.5 font-mono text-xs opacity-60">
+                      {i + 1}
+                    </kbd>
                     {opt}
                   </Button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Tip: press 1-{q.options.length} to answer
+              </p>
             </CardContent>
           </>
         ) : (
