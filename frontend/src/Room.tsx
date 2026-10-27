@@ -105,12 +105,15 @@ export default function Room() {
   }, [snap]);
 
   const me = snap?.players.find((p) => p.uid === auth.currentUser?.uid);
+  const sendAnswer = useCallback((question: Question, option: string) => {
+    setPicked(option);
+    pending.current = { prompt: question.prompt, picked: option };
+    socket.current?.emit("answer", { index: question.index, option });
+  }, []);
 
   const pick = (option: string) => {
     if (picked || !q) return;
-    setPicked(option);
-    pending.current = { prompt: q.prompt, picked: option };
-    socket.current?.emit("answer", { index: q.index, option });
+    sendAnswer(q, option);
   };
 
   useEffect(() => {
@@ -118,13 +121,24 @@ export default function Room() {
     const onKey = (e: KeyboardEvent) => {
       const option = q.options[Number(e.key) - 1];
       if (!option || e.repeat) return;
-      setPicked(option);
-      pending.current = { prompt: q.prompt, picked: option };
-      socket.current?.emit("answer", { index: q.index, option });
+      sendAnswer(q, option);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [q, picked]);
+  }, [q, picked, sendAnswer]);
+
+  useEffect(() => {
+    if (!result) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = result.correct ? 880 : 220;
+    gain.gain.value = 0.1;
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+    osc.onended = () => ctx.close();
+  }, [result]);
 
   const color = (opt: string) =>
     !result
@@ -134,7 +148,7 @@ export default function Room() {
       : opt === result.answer
         ? "bg-green-600 hover:bg-green-600"
         : opt === picked
-          ? "bg-red-600 hover:bg-red-600"
+          ? "bg-red-600 hover:bg-red-600 animate-shake"
           : "opacity-50";
 
   if (error)
