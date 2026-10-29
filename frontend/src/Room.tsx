@@ -4,6 +4,7 @@ import { io, type Socket } from "socket.io-client";
 import { auth } from "./firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Practice from "./Practice";
 
 type PlayerInfo = {
   uid: string;
@@ -49,6 +50,8 @@ export default function Room() {
 
   const [history, setHistory] = useState<Answered[]>([]);
   const pending = useRef<{ prompt: string; picked: string } | null>(null);
+  // true while flipping through the missed questions after a race
+  const [practicing, setPracticing] = useState(false);
 
   type Best = { uid: string; name: string; best: number; games: number };
   const [board, setBoard] = useState<Best[]>([]);
@@ -77,7 +80,11 @@ export default function Room() {
       setPicked(null);
       setResult(null);
       setStandings(null);
-      if (next.index === 0) setHistory([]);
+      // new race starting, so clear old history and get out of practice mode
+      if (next.index === 0) {
+        setHistory([]);
+        setPracticing(false);
+      }
     });
     s.on("result", (r: { correct: boolean; answer: string }) => {
       setResult(r);
@@ -239,13 +246,31 @@ export default function Room() {
                       ? "Perfect run, nothing to review."
                       : `Review: you missed ${missed.length} of ${history.length}`}
                   </p>
-                  {missed.map((m, i) => (
-                    <div key={i} className="rounded border p-3 text-sm">
-                      <p className="font-medium">{m.prompt}</p>
-                      <p className="text-red-500">Your answer: {m.picked}</p>
-                      <p className="text-green-600">Correct answer: {m.answer}</p>
-                    </div>
-                  ))}
+                  {/* show either the flashcards or the list, not both */}
+                  {practicing ? (
+                    <Practice
+                      cards={missed}
+                      onClose={() => setPracticing(false)}
+                    />
+                  ) : (
+                    missed.map((m, i) => (
+                      <div key={i} className="rounded border p-3 text-sm">
+                        <p className="font-medium">{m.prompt}</p>
+                        <p className="text-red-500">Your answer: {m.picked}</p>
+                        <p className="text-green-600">
+                          Correct answer: {m.answer}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                  {missed.length > 0 && !practicing && (
+                    <Button
+                      className="self-start"
+                      onClick={() => setPracticing(true)}
+                    >
+                      Practice mistakes
+                    </Button>
+                  )}
                 </div>
               )}
 
