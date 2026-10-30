@@ -24,13 +24,13 @@ export default function Nav() {
   }, [user, pathname]);
 
   const link = ({ isActive }: { isActive: boolean }) =>
-    `text-sm transition-colors ${isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`;
+    `border-b-2 py-5 text-sm transition-colors ${isActive ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`;
   const t = me && tier(me.elo);
 
   return (
     <header className="sticky top-0 z-10 h-16 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-full max-w-6xl items-center gap-8 px-4">
-        <Link to="/" className="text-lg font-bold">
+        <Link to="/" className="text-xl font-bold tracking-tight text-primary">
           ⚡ flash
         </Link>
         <nav className="flex gap-6">
