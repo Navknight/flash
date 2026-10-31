@@ -73,7 +73,7 @@ const Home = () => {
     <div className="mx-auto mt-10 max-w-5xl px-4">
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Decks</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Decks</h1>
           <p className="text-muted-foreground">
             Pick a deck and race other students through it.
           </p>
@@ -108,8 +108,9 @@ const Home = () => {
         </div>
       </div>
 
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-muted/50">
           <TableRow>
             <TableHead>Title</TableHead>
             <TableHead>Subject</TableHead>
@@ -144,6 +145,7 @@ const Home = () => {
           )}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 };
