@@ -48,9 +48,9 @@ export default function Nav() {
           {user ? (
             <>
               {me && t && (
-                <span className="text-sm">
-                  <span className={t.color}>{t.name}</span>{" "}
-                  <span className="font-mono text-muted-foreground">
+                <span className="flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-sm">
+                  <span className={`font-medium ${t.color}`}>{t.name}</span>
+                  <span className="tabular-nums text-muted-foreground">
                     {me.elo}
                   </span>
                 </span>
