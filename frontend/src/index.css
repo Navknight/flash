@@ -134,6 +134,10 @@
   html {
     @apply font-sans;
     }
+  a:focus-visible,
+  button:focus-visible {
+    @apply outline-2 outline-offset-2 outline-primary;
+    }
   h1, h2, h3 {
     @apply font-heading tracking-tight;
     }
