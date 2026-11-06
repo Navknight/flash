@@ -4,14 +4,6 @@ import { useUser } from "./firebase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 type Deck = {
   id: number;
@@ -19,6 +11,13 @@ type Deck = {
   subject: string;
   owner: string;
   cards: number;
+};
+
+// same subject always gets the same colour
+const subjectColor = (subject: string) => {
+  let sum = 0;
+  for (const ch of subject) sum += ch.charCodeAt(0);
+  return `hsl(${(sum * 37) % 360} 60% 55%)`;
 };
 
 const Home = () => {
@@ -73,7 +72,7 @@ const Home = () => {
     <div className="mx-auto mt-10 max-w-5xl px-4">
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Decks</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Decks</h1>
           <p className="text-muted-foreground">
             Pick a deck and race other students through it.
           </p>
@@ -108,42 +107,33 @@ const Home = () => {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Title</TableHead>
-            <TableHead>Subject</TableHead>
-            <TableHead className="text-right">Cards</TableHead>
-            <TableHead>By</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {visible.map((d) => (
-            <TableRow key={d.id}>
-              <TableCell className="font-medium">
-                <Link to={`/room/${d.id}`} className="hover:underline">
-                  {d.title}
-                </Link>
-              </TableCell>
-              <TableCell>
-                <Badge variant="secondary">{d.subject}</Badge>
-              </TableCell>
-              <TableCell className="text-right font-mono">{d.cards}</TableCell>
-              <TableCell className="text-muted-foreground">{d.owner}</TableCell>
-            </TableRow>
-          ))}
-          {status && (
-            <TableRow>
-              <TableCell
-                colSpan={4}
-                className="text-center text-muted-foreground"
-              >
-                {status}
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        {visible.map((d) => (
+          <Link
+            key={d.id}
+            to={`/room/${d.id}`}
+            className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0 hover:bg-muted/50"
+          >
+            <span
+              className="h-10 w-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: subjectColor(d.subject) }}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{d.title}</p>
+              <p className="truncate text-sm text-muted-foreground">
+                by {d.owner}
+              </p>
+            </div>
+            <Badge variant="secondary">{d.subject}</Badge>
+            <span className="w-16 text-right text-sm tabular-nums text-muted-foreground">
+              {d.cards} cards
+            </span>
+          </Link>
+        ))}
+        {status && (
+          <p className="px-4 py-8 text-center text-muted-foreground">{status}</p>
+        )}
+      </div>
     </div>
   );
 };
