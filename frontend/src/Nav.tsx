@@ -4,11 +4,13 @@ import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 import { auth, useUser } from "./firebase";
 import { tier } from "@/lib/tier";
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/lib/theme";
 
 export default function Nav() {
   const user = useUser();
   const { pathname } = useLocation();
   const [me, setMe] = useState<{ name: string; elo: number } | null>(null);
+  const { theme, toggle } = useTheme();
 
   // /api/me also creates the users row on first login, so it must run for every signed-in user.
   // Re-fetching on navigation keeps the Elo fresh after a duel.
@@ -45,6 +47,14 @@ export default function Nav() {
           </NavLink>
         </nav>
         <div className="ml-auto flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggle}
+            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </Button>
           {user ? (
             <>
               {me && t && (
