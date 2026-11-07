@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 // missed answers have extra fields (picked, correct) but we only need these two
@@ -15,13 +15,31 @@ export default function Practice({
   const [flipped, setFlipped] = useState(false);
   const card = cards[i];
 
-  // always show the question side first on the next card
+
   const next = () => {
     setFlipped(false);
     setI(i + 1);
   };
 
-  // went past the last card
+  useEffect(() => {
+    if (!card) return; 
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === " ") {
+        e.preventDefault(); 
+        setFlipped((f) => !f);
+      } else if ((e.key === "Enter" || e.key === "ArrowRight") && flipped) {
+        e.preventDefault();
+        next();
+      }
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown",onKey); 
+  }, [card, flipped, i]);
+
+
+
   if (!card)
     return (
       <div className="flex flex-col gap-3">
@@ -44,7 +62,7 @@ export default function Practice({
       >
         {flipped ? card.answer : card.prompt}
       </button>
-      <p className="text-xs text-muted-foreground">Click the card to flip it</p>
+      <p className="text-xs text-muted-foreground">Click the card or press Space to flip it · Enter or → for next</p>
       {/* only let them move on after they've seen the answer */}
       {flipped && (
         <Button className="self-start" onClick={next}>
