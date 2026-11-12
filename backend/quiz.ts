@@ -51,11 +51,13 @@ type Room = {
 
 const rooms = new Map<string, Room>();
 
-function shuffle<T>(a: T[]): T[] {
-  return a
-    .map((v) => [Math.random(), v] as const)
-    .sort((x, y) => x[0] - y[0])
-    .map(([, v]) => v);
+function shuffle<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
 }
 
 async function loadQuestions(deckId: number): Promise<Question[]> {
