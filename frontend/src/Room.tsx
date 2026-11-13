@@ -218,11 +218,16 @@ export default function Room() {
                     ? `Finished! Waiting for others... ${secs}s`
                     : "Race in progress, you're in the next one"
                   : snap.phase === "countdown"
-                    ? `Starting in ${secs}s`
+                    ? "Get Ready!"
                     : "Waiting for another player..."}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
+                {snap.phase === "countdown" && (
+                <p key={secs} className="py-6 text-center font-heading text-7xl font-bold text-primary animate-in zoom-in-50">
+                  {secs}
+                </p>
+              )}
               {standings && (
                 <>
                   <p className="text-sm text-muted-foreground">Last race</p>
