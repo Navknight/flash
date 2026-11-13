@@ -107,34 +107,26 @@ const Home = () => {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        {visible.map((d) => (
-          <Link
-            key={d.id}
-            to={`/room/${d.id}`}
-            className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0 hover:bg-muted/50"
-          >
-            <span
-              className="h-10 w-1.5 shrink-0 rounded-full"
-              style={{ backgroundColor: subjectColor(d.subject) }}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{d.title}</p>
-              <p className="truncate text-sm text-muted-foreground">
-                by {d.owner}
-              </p>
-            </div>
-            <Badge variant="secondary">{d.subject}</Badge>
-            <span className="w-16 text-right text-sm tabular-nums text-muted-foreground">
-              {d.cards} cards
-            </span>
-          </Link>
-        ))}
-        {status && (
-          <p className="px-4 py-8 text-center text-muted-foreground">{status}</p>
-        )}
+<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  {visible.map((d) => (
+    <Link
+      key={d.id}
+      to={`/room/${d.id}`}
+      className="rounded-xl border border-t-4 bg-card p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+      style={{ borderTopColor: subjectColor(d.subject) }}
+    >
+      <p className="font-heading text-lg font-semibold">{d.title}</p>
+      <p className="text-sm text-muted-foreground">by {d.owner}</p>
+      <div className="mt-4 flex items-center justify-between">
+        <Badge variant="secondary">{d.subject}</Badge>
+        <span className="text-sm text-muted-foreground">{d.cards} cards</span>
       </div>
-    </div>
+    </Link>
+  ))}
+</div>
+{status && <p className="py-8 text-center text-muted-foreground">{status}</p>}
+      </div>
+  
   );
 };
 
