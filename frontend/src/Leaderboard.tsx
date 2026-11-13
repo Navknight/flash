@@ -39,7 +39,16 @@ export default function Leaderboard() {
         <p className="text-muted-foreground">
           No ranked duels yet. Be the first on the board.
         </p>
-      ) : (
+      ) : (<>
+      <div className="mb-6 grid grid-cols-3 gap-3">
+  {rows.slice(0, 3).map((r, i) => (
+    <div key={r.uid} className="rounded-xl border bg-card p-4 text-center shadow-sm">
+      <p className="text-3xl">{["🥇", "🥈", "🥉"][i]}</p>
+      <p className="mt-2 truncate font-semibold">{r.name}</p>
+      <p className="font-mono text-sm text-muted-foreground">{r.elo}</p>
+    </div>
+  ))}
+</div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -89,6 +98,7 @@ export default function Leaderboard() {
             })}
           </TableBody>
         </Table>
+        </>
       )}
     </div>
   );
