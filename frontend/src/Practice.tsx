@@ -106,21 +106,26 @@ export default function Practice({
         </Button>
       </div>
       <button
-  type="button"
-  onClick={() => setFlipped(!flipped)}
-  className="h-48 [perspective:1000px]"
->
-  <div
-    className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] ${flipped ? "[transform:rotateY(180deg)]" : ""}`}
-  >
-    <div className="absolute inset-0 flex items-center justify-center rounded-xl border bg-card p-6 text-lg [backface-visibility:hidden]">
-      {card.prompt}
-    </div>
-    <div className="absolute inset-0 flex items-center justify-center rounded-xl border bg-primary/10 p-6 text-lg [backface-visibility:hidden] [transform:rotateY(180deg)]">
-      {card.answer}
-    </div>
-  </div>
-</button>
+        type="button"
+        onClick={() => setFlipped(!flipped)}
+        className="h-48 [perspective:1000px]"
+      >
+        <div
+          key={i + card.prompt}
+          className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] ${flipped ? "[transform:rotateY(180deg)]" : ""}`}
+        >
+          <div
+            className={`absolute inset-0 flex items-center justify-center rounded-xl border bg-card p-6 text-lg transition-opacity delay-250 duration-0 [backface-visibility:hidden] ${flipped ? "opacity-0" : ""}`}
+          >
+            {card.prompt}
+          </div>
+          <div
+            className={`absolute inset-0 flex items-center justify-center rounded-xl border bg-primary/10 p-6 text-lg transition-opacity delay-250 duration-0 [backface-visibility:hidden] [transform:rotateY(180deg)] ${flipped ? "" : "opacity-0"}`}
+          >
+            {card.answer}
+          </div>
+        </div>
+      </button>
 
       <p className="text-xs text-muted-foreground">
         Space to flip · ← previous · Enter or → got it · M missed it
