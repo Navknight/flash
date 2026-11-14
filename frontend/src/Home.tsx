@@ -112,7 +112,7 @@ const Home = () => {
     <Link
       key={d.id}
       to={`/room/${d.id}`}
-      className="rounded-xl border border-t-4 bg-card p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+      className="rounded-xl border border-t-4 bg-card p-4 backdrop-blur-md shadow-sm transition hover:-translate-y-1 hover:shadow-md"
       style={{ borderTopColor: subjectColor(d.subject) }}
     >
       <p className="font-heading text-lg font-semibold">{d.title}</p>

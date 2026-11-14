@@ -168,7 +168,7 @@ export default function Duels() {
     return (
       <div className="mx-auto mt-10 flex max-w-xl flex-col gap-6 px-4">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">Duels</h1>
+          <h1 className="mx-auto text-3xl font-bold">Duels</h1>
           <p className="text-muted-foreground">
             Same problem, two players. First to pass every test wins.
           </p>
