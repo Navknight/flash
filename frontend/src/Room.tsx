@@ -177,7 +177,9 @@ export default function Room() {
               <span>
                 Question {q.index + 1}/{snap.total}
               </span>
-              <span className="font-mono">{secs}s</span>
+              <span className={`font-mono ${
+  secs <= 5 ? "animate-pulse text-red-500" : ""
+}`}>{secs}s</span>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {q.imageUrl && (

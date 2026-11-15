@@ -342,7 +342,7 @@ export default function Duels() {
               </div>
             );
           })}
-          <span className="font-mono text-lg">{clock(secs)}</span>
+          <span className={'font-mono text-lg ${secs<=60 ? "animate-pulse text-red-500":""}'}>{clock(secs)}</span>
           <Button
             variant="outline"
             size="sm"
