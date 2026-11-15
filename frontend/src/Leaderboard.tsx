@@ -40,14 +40,21 @@ export default function Leaderboard() {
           No ranked duels yet. Be the first on the board.
         </p>
       ) : (<>
-      <div className="mb-6 grid grid-cols-3 gap-3">
-  {rows.slice(0, 3).map((r, i) => (
-    <div key={r.uid} className="rounded-xl border bg-card p-4 text-center shadow-sm">
-      <p className="text-3xl">{["🥇", "🥈", "🥉"][i]}</p>
-      <p className="mt-2 truncate font-semibold">{r.name}</p>
-      <p className="font-mono text-sm text-muted-foreground">{r.elo}</p>
-    </div>
-  ))}
+     <div className="mb-6 grid grid-cols-3 items-end gap-3">
+  {[1, 0, 2].map((i) =>
+    rows[i] ? (
+      <div
+        key={rows[i].uid}
+        className={`rounded-xl border bg-card p-4 text-center shadow-sm ${i === 0 ? "py-8 border-yellow-400/60" : ""}`}
+      >
+        <p className="text-3xl">{["🥇", "🥈", "🥉"][i]}</p>
+        <p className="mt-2 truncate font-semibold">{rows[i].name}</p>
+        <p className="font-mono text-sm text-muted-foreground">{rows[i].elo}</p>
+      </div>
+    ) : (
+      <div key={i} />
+    ),
+  )}
 </div>
         <Table>
           <TableHeader>
