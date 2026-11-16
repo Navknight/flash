@@ -4,6 +4,7 @@ import { io, type Socket } from "socket.io-client";
 import { auth } from "./firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Practice from "./Practice";
 
 type PlayerInfo = {
   uid: string;
@@ -26,6 +27,12 @@ type Question = {
   options: string[];
   imageUrl: string | null;
 };
+type Answered = {
+  prompt: string;
+  picked: string;
+  answer: string;
+  correct: boolean;
+};
 
 export default function Room() {
   const { deckId } = useParams();
@@ -40,6 +47,11 @@ export default function Room() {
   const [standings, setStandings] = useState<PlayerInfo[] | null>(null);
   const [secs, setSecs] = useState(0);
   const [error, setError] = useState("");
+
+  const [history, setHistory] = useState<Answered[]>([]);
+  const pending = useRef<{ prompt: string; picked: string } | null>(null);
+  // true while flipping through the missed questions after a race
+  const [practicing, setPracticing] = useState(false);
 
   type Best = { uid: string; name: string; best: number; games: number };
   const [board, setBoard] = useState<Best[]>([]);
@@ -68,8 +80,17 @@ export default function Room() {
       setPicked(null);
       setResult(null);
       setStandings(null);
+      // new race starting, so clear old history and get out of practice mode
+      if (next.index === 0) {
+        setHistory([]);
+        setPracticing(false);
+      }
     });
-    s.on("result", setResult);
+    s.on("result", (r: { correct: boolean; answer: string }) => {
+      setResult(r);
+      const p = pending.current;
+      if (p) setHistory((h) => [...h, { ...p, ...r }]);
+    });
     s.on("end", (final: PlayerInfo[]) => {
       setStandings(final);
       setQ(null);
@@ -91,12 +112,40 @@ export default function Room() {
   }, [snap]);
 
   const me = snap?.players.find((p) => p.uid === auth.currentUser?.uid);
+  const sendAnswer = useCallback((question: Question, option: string) => {
+    setPicked(option);
+    pending.current = { prompt: question.prompt, picked: option };
+    socket.current?.emit("answer", { index: question.index, option });
+  }, []);
 
   const pick = (option: string) => {
     if (picked || !q) return;
-    setPicked(option);
-    socket.current?.emit("answer", { index: q.index, option });
+    sendAnswer(q, option);
   };
+
+  useEffect(() => {
+    if (!q || picked) return;
+    const onKey = (e: KeyboardEvent) => {
+      const option = q.options[Number(e.key) - 1];
+      if (!option || e.repeat) return;
+      sendAnswer(q, option);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [q, picked, sendAnswer]);
+
+  useEffect(() => {
+    if (!result) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = result.correct ? 880 : 220;
+    gain.gain.value = 0.1;
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+    osc.onended = () => ctx.close();
+  }, [result]);
 
   const color = (opt: string) =>
     !result
@@ -106,7 +155,7 @@ export default function Room() {
       : opt === result.answer
         ? "bg-green-600 hover:bg-green-600"
         : opt === picked
-          ? "bg-red-600 hover:bg-red-600"
+          ? "bg-red-600 hover:bg-red-600 animate-shake"
           : "opacity-50";
 
   if (error)
@@ -117,6 +166,7 @@ export default function Room() {
     );
 
   const racing = snap.phase === "race" && me?.racing && !me.done && q;
+  const missed = history.filter((h) => !h.correct);
 
   return (
     <div className="mx-auto mt-8 grid max-w-5xl gap-6 px-4 md:grid-cols-[1fr_260px]">
@@ -127,7 +177,9 @@ export default function Room() {
               <span>
                 Question {q.index + 1}/{snap.total}
               </span>
-              <span className="font-mono">{secs}s</span>
+              <span className={`font-mono ${
+  secs <= 5 ? "animate-pulse text-red-500" : ""
+}`}>{secs}s</span>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {q.imageUrl && (
@@ -140,17 +192,23 @@ export default function Room() {
               )}
               <p className="text-xl font-semibold">{q.prompt}</p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {q.options.map((opt) => (
+                {q.options.map((opt, i) => (
                   <Button
                     key={opt}
                     variant="secondary"
-                    className={`h-auto whitespace-normal py-3 ${color(opt)}`}
+                    className={`h-auto justify-start whitespace-normal py-3 ${color(opt)}`}
                     onClick={() => pick(opt)}
                   >
+                    <kbd className="mr-2 rounded border px-1.5 font-mono text-xs opacity-60">
+                      {i + 1}
+                    </kbd>
                     {opt}
                   </Button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Tip: press 1-{q.options.length} to answer
+              </p>
             </CardContent>
           </>
         ) : (
@@ -162,11 +220,16 @@ export default function Room() {
                     ? `Finished! Waiting for others... ${secs}s`
                     : "Race in progress, you're in the next one"
                   : snap.phase === "countdown"
-                    ? `Starting in ${secs}s`
+                    ? "Get Ready!"
                     : "Waiting for another player..."}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
+                {snap.phase === "countdown" && (
+                <p key={secs} className="py-6 text-center font-heading text-7xl font-bold text-primary animate-in zoom-in-50">
+                  {secs}
+                </p>
+              )}
               {standings && (
                 <>
                   <p className="text-sm text-muted-foreground">Last race</p>
@@ -182,6 +245,42 @@ export default function Room() {
                   ))}
                 </>
               )}
+
+              {history.length > 0 && (
+                <div className="mt-4 flex flex-col gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    {missed.length === 0
+                      ? "Perfect run, nothing to review."
+                      : `Review: you missed ${missed.length} of ${history.length}`}
+                  </p>
+                  {/* show either the flashcards or the list, not both */}
+                  {practicing ? (
+                    <Practice
+                      cards={missed}
+                      onClose={() => setPracticing(false)}
+                    />
+                  ) : (
+                    missed.map((m, i) => (
+                      <div key={i} className="rounded border p-3 text-sm">
+                        <p className="font-medium">{m.prompt}</p>
+                        <p className="text-red-500">Your answer: {m.picked}</p>
+                        <p className="text-green-600">
+                          Correct answer: {m.answer}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                  {missed.length > 0 && !practicing && (
+                    <Button
+                      className="self-start"
+                      onClick={() => setPracticing(true)}
+                    >
+                      Practice mistakes
+                    </Button>
+                  )}
+                </div>
+              )}
+
               <Button
                 variant="outline"
                 className="mt-4 self-start"

@@ -2,7 +2,9 @@
 
 ---
 
-Flash is a fun way to learn. It builds on top of the idea of spaced repitition and allows students to learn through competition (friendly competition ofcours, totally friendly hehe).
+[Why Lines of Code is a meaningless metric](https://desunit.com/blog/why-lines-of-code-are-a-meaningless-productivity-metric)
+
+Flash is a fun way to learn. It builds on top of the idea of spaced repetition and allows students to learn through competition (friendly competition of course, totally friendly hehe).
 
 There are 3 main features -
 

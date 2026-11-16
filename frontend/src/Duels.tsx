@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTheme } from "@/lib/theme";
 import { useSearchParams } from "react-router";
 import Editor from "@monaco-editor/react";
 import { io, type Socket } from "socket.io-client";
@@ -74,6 +75,7 @@ const clock = (secs: number) =>
   `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
 
 export default function Duels() {
+  const { theme } = useTheme();
   const socket = useRef<Socket | null>(null);
   const [params, setParams] = useSearchParams();
   const inviteCode = params.get("invite");
@@ -166,7 +168,7 @@ export default function Duels() {
     return (
       <div className="mx-auto mt-10 flex max-w-xl flex-col gap-6 px-4">
         <div className="text-center">
-          <h1 className="text-3xl font-bold">Duels</h1>
+          <h1 className="mx-auto text-3xl font-bold">Duels</h1>
           <p className="text-muted-foreground">
             Same problem, two players. First to pass every test wins.
           </p>
@@ -340,7 +342,7 @@ export default function Duels() {
               </div>
             );
           })}
-          <span className="font-mono text-lg">{clock(secs)}</span>
+          <span className={'font-mono text-lg ${secs<=60 ? "animate-pulse text-red-500":""}'}>{clock(secs)}</span>
           <Button
             variant="outline"
             size="sm"
@@ -397,7 +399,7 @@ export default function Duels() {
           </div>
           <div className="min-h-0 flex-1 overflow-hidden rounded-md border">
             <Editor
-              theme="vs-dark"
+              theme={theme === "dark" ? "vs-dark" : "light"}
               language={language}
               value={code[language]}
               onChange={(v) => setCode((c) => ({ ...c, [language]: v ?? "" }))}
