@@ -18,12 +18,20 @@ type Props = {
   myUid: string;
   next: () => Promise<NextResult>;
   answer: (questionId: number, choiceIndex: number) => Promise<AnswerResult>;
+  onLeave: () => void;
 };
 
 const clock = (secs: number) =>
   `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
 
-export default function Battle({ state, feed, myUid, next, answer }: Props) {
+export default function Battle({
+  state,
+  feed,
+  myUid,
+  next,
+  answer,
+  onLeave,
+}: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [question, setQuestion] = useState<Question | null>(null);
   const [secondsAllowed, setSecondsAllowed] = useState(20);
@@ -115,7 +123,12 @@ export default function Battle({ state, feed, myUid, next, answer }: Props) {
                 </span>
               )}
             </h1>
-            <span className="font-mono text-lg">{clock(secsLeft)}</span>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-lg">{clock(secsLeft)}</span>
+              <Button variant="outline" size="sm" onClick={onLeave}>
+                Leave
+              </Button>
+            </div>
           </div>
           <div className="h-5 overflow-hidden rounded bg-muted">
             <div
@@ -157,7 +170,7 @@ export default function Battle({ state, feed, myUid, next, answer }: Props) {
                   <p className="py-4 text-center text-lg font-semibold">
                     {state.status === "won"
                       ? "The boss is defeated!"
-                      : "Time's up. The boss survived."}
+                      : "The raid is over. The boss survived."}
                   </p>
                 )}
 

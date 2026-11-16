@@ -172,7 +172,8 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
         [user.uid, socket.data.name],
       );
       next();
-    } catch {
+    } catch (e) {
+      console.error("[raids] auth failed:", e);
       next(new Error("Unauthorized"));
     }
   });
@@ -259,6 +260,18 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
     runtimes.set(code, { endsAt, timer, pending: new Map() });
   }
 
+  // Everyone has answered every question and the boss is still alive: the raid is over.
+  // Safe to call any time; it does nothing unless the raid is active and everyone is done.
+  async function endIfAllDone(code: string) {
+    const { rows } = await db.query(
+      `select count(*)::int as unfinished from raid_participants p
+        where p.raid_code = $1
+          and p.answered < (select count(*) from raid_questions q where q.raid_code = $1)`,
+      [code],
+    );
+    if (rows[0].unfinished === 0) await finishRaid(code, "lost");
+  }
+
   // Server restarted mid-raid? Re-arm the timers (or finish raids that ran out meanwhile).
   tablesReady
     .then(() =>
@@ -272,7 +285,10 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
         const endsAt = Number(r.started_ms) + r.duration_sec * 1000;
         if ((await hpOf(r.code)) <= 0) await finishRaid(r.code, "won");
         else if (endsAt <= Date.now()) await finishRaid(r.code, "lost");
-        else armTimer(r.code, endsAt);
+        else {
+          armTimer(r.code, endsAt);
+          await endIfAllDone(r.code); // finishes raids that got stuck with everyone done
+        }
       }
     })
     .catch((e) => console.error("[raids] recovery failed", e));
@@ -419,7 +435,10 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
               [code, uid],
             )
           ).rows[0];
-          if (!q) return { done: true };
+          if (!q) {
+            await endIfAllDone(code);
+            return { done: true };
+          }
           rt.pending.set(uid, { questionId: q.id, sentAt: Date.now() });
         }
         return {
@@ -477,6 +496,7 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
         const hpRemaining = await hpOf(code);
         nsp.to(room(code)).emit("raid:damage", { uid, name, damage, correct, hpRemaining });
         if (hpRemaining <= 0) await finishRaid(code, "won");
+        else await endIfAllDone(code);
 
         return { correct, damage, correctIndex: q.correct_index, hpRemaining };
       }),

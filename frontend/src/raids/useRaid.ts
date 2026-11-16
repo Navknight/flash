@@ -94,9 +94,10 @@ export function useRaid(uid: string | undefined) {
       }
     });
     s.on("disconnect", () => setConnected(false));
-    s.on("connect_error", () =>
-      setError("Could not connect to raids. Try signing in again."),
-    );
+    s.on("connect_error", (err) => {
+      console.error("[raids] connect_error:", err.message);
+      setError("Could not connect to raids. Try signing in again.");
+    });
 
     s.on("raid:player-joined", (p: { uid: string; name: string }) =>
       setState((st) => {

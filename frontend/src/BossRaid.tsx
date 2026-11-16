@@ -70,7 +70,7 @@ export default function BossRaid() {
           <p className="mt-2 text-muted-foreground">
             {won
               ? `${state.bossName} was defeated by the party.`
-              : `${state.bossName} had ${state.hpRemaining.toLocaleString()} HP left when time ran out.`}
+              : `${state.bossName} had ${state.hpRemaining.toLocaleString()} HP left when the raid ended.`}
           </p>
         </div>
         <Card>
@@ -111,6 +111,7 @@ export default function BossRaid() {
         myUid={user.uid}
         next={raid.next}
         answer={raid.answer}
+        onLeave={raid.leave}
       />
     );
   }
