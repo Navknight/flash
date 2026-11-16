@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useUser } from "./firebase";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -19,6 +18,9 @@ const subjectColor = (subject: string) => {
   for (const ch of subject) sum += ch.charCodeAt(0);
   return `hsl(${(sum * 37) % 360} 60% 55%)`;
 };
+
+const chip = (active: boolean) =>
+  `rounded-full border px-3.5 py-1 text-sm font-semibold ${active ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-muted"}`;
 
 const Home = () => {
   const user = useUser();
@@ -65,68 +67,86 @@ const Home = () => {
       (visible.length === 0
         ? decks.length
           ? "No decks match your search."
-          : "No decks yet. Upload the first one."
+          : "No decks yet."
         : "");
 
   return (
-    <div className="mx-auto mt-10 max-w-5xl px-4">
+    <div className="mx-auto mt-10 max-w-6xl px-4 pb-16">
       <div className="mb-6 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Decks</h1>
-          <p className="text-muted-foreground">
-            Pick a deck and race other students through it.
-          </p>
-        </div>
-        {user && <Button render={<Link to="/upload" />}>Upload a deck</Button>}
+        <h1 className="text-4xl font-extrabold">Decks</h1>
+        {user && (
+          <Button variant="outline" render={<Link to="/upload" />}>
+            Upload deck
+          </Button>
+        )}
       </div>
 
-      <div className="mb-4 flex flex-col gap-3">
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by title or author"
-        />
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setSubject(null)}>
-            <Badge variant={subject === null ? "default" : "secondary"}>All</Badge>
+      <Input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search decks"
+        aria-label="Search decks"
+        className="h-11 bg-card text-base"
+      />
+      <div className="mt-3 mb-4 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setSubject(null)}
+          className={chip(subject === null)}
+        >
+          All
+        </button>
+        {subjects.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setSubject(subject === s ? null : s)}
+            className={chip(subject === s)}
+          >
+            {s}
           </button>
-          {subjects.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setSubject(subject === s ? null : s)}
-            >
-              <Badge variant={subject === s ? "default" : "secondary"}>{s}</Badge>
-            </button>
-          ))}
-          {!loading && !error && (
-            <span className="ml-auto text-sm text-muted-foreground">
-              {visible.length} of {decks.length} decks
-            </span>
-          )}
-        </div>
+        ))}
+        {!loading && !error && (
+          <span className="ml-auto text-sm text-muted-foreground">
+            {visible.length} decks
+          </span>
+        )}
       </div>
 
-<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-  {visible.map((d) => (
-    <Link
-      key={d.id}
-      to={`/room/${d.id}`}
-      className="rounded-xl border border-t-4 bg-card p-4 backdrop-blur-md shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-      style={{ borderTopColor: subjectColor(d.subject) }}
-    >
-      <p className="font-heading text-lg font-semibold">{d.title}</p>
-      <p className="text-sm text-muted-foreground">by {d.owner}</p>
-      <div className="mt-4 flex items-center justify-between">
-        <Badge variant="secondary">{d.subject}</Badge>
-        <span className="text-sm text-muted-foreground">{d.cards} cards</span>
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="hidden grid-cols-[1fr_180px_70px_90px] gap-4 border-b px-5 py-2.5 text-sm font-semibold text-muted-foreground sm:grid">
+          <span>Deck</span>
+          <span>Subject</span>
+          <span className="text-right">Cards</span>
+          <span />
+        </div>
+        {visible.map((d) => (
+          <div
+            key={d.id}
+            className="grid grid-cols-[1fr_80px] items-center gap-4 border-b px-5 py-3.5 last:border-b-0 hover:bg-muted/60 sm:grid-cols-[1fr_180px_70px_90px]"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-base font-bold">{d.title}</p>
+              <p className="text-sm text-muted-foreground">by {d.owner}</p>
+            </div>
+            <span className="hidden items-center gap-2 sm:flex">
+              <span
+                className="size-2.5 shrink-0 rounded-sm"
+                style={{ background: subjectColor(d.subject) }}
+              />
+              <span className="truncate">{d.subject}</span>
+            </span>
+            <span className="hidden text-right tabular-nums text-muted-foreground sm:block">
+              {d.cards}
+            </span>
+            <Button render={<Link to={`/room/${d.id}`} />}>Race</Button>
+          </div>
+        ))}
+        {status && (
+          <p className="px-5 py-8 text-center text-muted-foreground">{status}</p>
+        )}
       </div>
-    </Link>
-  ))}
-</div>
-{status && <p className="py-8 text-center text-muted-foreground">{status}</p>}
-      </div>
-  
+    </div>
   );
 };
 
