@@ -169,19 +169,29 @@ export default function Room() {
   const missed = history.filter((h) => !h.correct);
 
   return (
-    <div className="mx-auto mt-8 grid max-w-5xl gap-6 px-4 md:grid-cols-[1fr_260px]">
-      <Card>
-        {racing ? (
-          <>
-            <CardHeader className="flex flex-row justify-between text-sm text-muted-foreground">
-              <span>
-                Question {q.index + 1}/{snap.total}
+    <div className="mx-auto mt-8 grid max-w-6xl items-start gap-8 px-4 pb-16 md:grid-cols-[1fr_300px]">
+      {racing ? (
+        <section>
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <p className="text-xl font-extrabold">
+              Question {q.index + 1}/{snap.total}
+            </p>
+            <div className="text-right">
+              <span
+                className={`text-6xl leading-none font-light tabular-nums ${
+                  secs <= 5 ? "animate-pulse text-red-500" : ""
+                }`}
+              >
+                {String(secs).padStart(2, "0")}
               </span>
-              <span className={`font-mono ${
-  secs <= 5 ? "animate-pulse text-red-500" : ""
-}`}>{secs}s</span>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+              <p className="text-xs text-muted-foreground">sec</p>
+            </div>
+          </div>
+          <div className="overflow-hidden rounded bg-paper text-[#1c2026] shadow-[0_1px_0_var(--border),0_10px_24px_-14px_rgba(28,32,38,0.35)]">
+            <div className="flex h-12 items-center justify-end border-b-2 border-rule px-8 text-sm text-[#5b6370]">
+              {q.index + 1}
+            </div>
+            <div className="flex min-h-44 flex-col gap-4 bg-[repeating-linear-gradient(transparent_0_35px,var(--lines)_35px_36px)] px-8 pt-2 pb-9">
               {q.imageUrl && (
                 <img
                   src={q.imageUrl}
@@ -190,116 +200,121 @@ export default function Room() {
                   onError={(e) => (e.currentTarget.style.display = "none")}
                 />
               )}
-              <p className="text-xl font-semibold">{q.prompt}</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {q.options.map((opt, i) => (
-                  <Button
-                    key={opt}
-                    variant="secondary"
-                    className={`h-auto justify-start whitespace-normal py-3 ${color(opt)}`}
-                    onClick={() => pick(opt)}
-                  >
-                    <kbd className="mr-2 rounded border px-1.5 font-mono text-xs opacity-60">
-                      {i + 1}
-                    </kbd>
-                    {opt}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Tip: press 1-{q.options.length} to answer
-              </p>
-            </CardContent>
-          </>
-        ) : (
-          <>
-            <CardHeader>
-              <CardTitle>
-                {snap.phase === "race"
-                  ? me?.racing
-                    ? `Finished! Waiting for others... ${secs}s`
-                    : "Race in progress, you're in the next one"
-                  : snap.phase === "countdown"
-                    ? "Get Ready!"
-                    : "Waiting for another player..."}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-                {snap.phase === "countdown" && (
-                <p key={secs} className="py-6 text-center font-heading text-7xl font-bold text-primary animate-in zoom-in-50">
-                  {secs}
-                </p>
-              )}
-              {standings && (
-                <>
-                  <p className="text-sm text-muted-foreground">Last race</p>
-                  {standings.map((p, i) => (
-                    <div key={p.uid} className="flex justify-between">
-                      <span>
-                        {i + 1}. {p.name}
-                      </span>
-                      <span className="font-mono">
-                        {p.correct}/{snap.total} · {p.score}
-                      </span>
-                    </div>
-                  ))}
-                </>
-              )}
-
-              {history.length > 0 && (
-                <div className="mt-4 flex flex-col gap-2">
-                  <p className="text-sm text-muted-foreground">
-                    {missed.length === 0
-                      ? "Perfect run, nothing to review."
-                      : `Review: you missed ${missed.length} of ${history.length}`}
-                  </p>
-                  {/* show either the flashcards or the list, not both */}
-                  {practicing ? (
-                    <Practice
-                      cards={missed}
-                      onClose={() => setPracticing(false)}
-                    />
-                  ) : (
-                    missed.map((m, i) => (
-                      <div key={i} className="rounded border p-3 text-sm">
-                        <p className="font-medium">{m.prompt}</p>
-                        <p className="text-red-500">Your answer: {m.picked}</p>
-                        <p className="text-green-600">
-                          Correct answer: {m.answer}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                  {missed.length > 0 && !practicing && (
-                    <Button
-                      className="self-start"
-                      onClick={() => setPracticing(true)}
-                    >
-                      Practice mistakes
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              <Button
-                variant="outline"
-                className="mt-4 self-start"
-                render={<Link to="/" />}
-              >
-                Leave
-              </Button>
-              {snap.phase === "lobby" && snap.players.length === 1 && (
+              <p className="text-3xl leading-9 font-extrabold">{q.prompt}</p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-col gap-4">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {q.options.map((opt, i) => (
                 <Button
-                  className="mt-4 self-start"
-                  onClick={() => socket.current?.emit("solo")}
+                  key={opt}
+                  variant="secondary"
+                  className={`h-auto justify-start whitespace-normal py-3 ${color(opt)}`}
+                  onClick={() => pick(opt)}
                 >
-                  Play solo
+                  <kbd className="mr-2 rounded border px-1.5 font-mono text-xs opacity-60">
+                    {i + 1}
+                  </kbd>
+                  {opt}
                 </Button>
-              )}
-            </CardContent>
-          </>
-        )}
-      </Card>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Tip: press 1-{q.options.length} to answer
+            </p>
+          </div>
+        </section>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {snap.phase === "race"
+                ? me?.racing
+                  ? `Finished! Waiting for others... ${secs}s`
+                  : "Race in progress, you're in the next one"
+                : snap.phase === "countdown"
+                  ? "Get Ready!"
+                  : "Waiting for another player..."}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {snap.phase === "countdown" && (
+              <p
+                key={secs}
+                className="py-6 text-center font-heading text-7xl font-bold text-primary animate-in zoom-in-50"
+              >
+                {secs}
+              </p>
+            )}
+            {standings && (
+              <>
+                <p className="text-sm text-muted-foreground">Last race</p>
+                {standings.map((p, i) => (
+                  <div key={p.uid} className="flex justify-between">
+                    <span>
+                      {i + 1}. {p.name}
+                    </span>
+                    <span className="font-mono">
+                      {p.correct}/{snap.total} · {p.score}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {history.length > 0 && (
+              <div className="mt-4 flex flex-col gap-2">
+                <p className="text-sm text-muted-foreground">
+                  {missed.length === 0
+                    ? "Perfect run, nothing to review."
+                    : `Review: you missed ${missed.length} of ${history.length}`}
+                </p>
+                {/* show either the flashcards or the list, not both */}
+                {practicing ? (
+                  <Practice
+                    cards={missed}
+                    onClose={() => setPracticing(false)}
+                  />
+                ) : (
+                  missed.map((m, i) => (
+                    <div key={i} className="rounded border p-3 text-sm">
+                      <p className="font-medium">{m.prompt}</p>
+                      <p className="text-red-500">Your answer: {m.picked}</p>
+                      <p className="text-green-600">
+                        Correct answer: {m.answer}
+                      </p>
+                    </div>
+                  ))
+                )}
+                {missed.length > 0 && !practicing && (
+                  <Button
+                    className="self-start"
+                    onClick={() => setPracticing(true)}
+                  >
+                    Practice mistakes
+                  </Button>
+                )}
+              </div>
+            )}
+
+            <Button
+              variant="outline"
+              className="mt-4 self-start"
+              render={<Link to="/" />}
+            >
+              Leave
+            </Button>
+            {snap.phase === "lobby" && snap.players.length === 1 && (
+              <Button
+                className="mt-4 self-start"
+                onClick={() => socket.current?.emit("solo")}
+              >
+                Play solo
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
