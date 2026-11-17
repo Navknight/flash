@@ -5,6 +5,8 @@ import { auth, useUser } from "./firebase";
 import { tier } from "@/lib/tier";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/lib/theme";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons";
 
 export default function Nav() {
   const user = useUser();
@@ -26,14 +28,18 @@ export default function Nav() {
   }, [user, pathname]);
 
   const link = ({ isActive }: { isActive: boolean }) =>
-    `border-b-2 py-5 text-sm transition-colors ${isActive ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`;
+    `border-b-[3px] py-5 text-[15px] font-bold transition-colors ${isActive ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`;
   const t = me && tier(me.elo);
 
   return (
-    <header className="sticky top-0 z-10 h-16 border-b bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-10 h-16 border-b bg-card">
       <div className="mx-auto flex h-full max-w-6xl items-center gap-4 px-4 sm:gap-8">
-        <Link to="/" className="text-xl font-bold tracking-tight text-primary">
-          ⚡<span className="hidden sm:inline"> flash</span>
+        <Link
+          to="/"
+          className="flex items-center gap-2 text-2xl font-black tracking-tight"
+        >
+          <img src="/logo.svg" alt="" className="h-5 w-6.5" />
+          <span className="hidden sm:inline">flash</span>
         </Link>
         <nav className="flex gap-4 sm:gap-6">
           <NavLink to="/" end className={link}>
@@ -48,18 +54,18 @@ export default function Nav() {
         </nav>
         <div className="ml-auto flex items-center gap-3">
           <Button
-            variant="ghost"
-            size="icon-sm"
+            variant="outline"
+            size="icon"
             onClick={toggle}
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           >
-            {theme === "dark" ? "☀️" : "🌙"}
+            <HugeiconsIcon icon={theme === "dark" ? Sun03Icon : Moon02Icon} />
           </Button>
           {user ? (
             <>
               {me && t && (
-                <span className="hidden items-center gap-2 rounded-full sm:flex border bg-card px-3 py-1 text-sm">
-                  <span className={`font-medium ${t.color}`}>{t.name}</span>
+                <span className="hidden items-center gap-2 rounded-full border px-3 py-1 text-sm sm:flex">
+                  <span className={`font-extrabold ${t.color}`}>{t.name}</span>
                   <span className="tabular-nums text-muted-foreground">
                     {me.elo}
                   </span>
