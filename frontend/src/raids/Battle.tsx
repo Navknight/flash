@@ -19,6 +19,7 @@ type Props = {
   next: () => Promise<NextResult>;
   answer: (questionId: number, choiceIndex: number) => Promise<AnswerResult>;
   onLeave: () => void;
+  onEnd: () => void;
 };
 
 const clock = (secs: number) =>
@@ -31,6 +32,7 @@ export default function Battle({
   next,
   answer,
   onLeave,
+  onEnd,
 }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [question, setQuestion] = useState<Question | null>(null);
@@ -128,6 +130,17 @@ export default function Battle({
               <Button variant="outline" size="sm" onClick={onLeave}>
                 Leave
               </Button>
+              {state.isHost && !over && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (window.confirm("End the raid for everyone?")) onEnd();
+                  }}
+                >
+                  End raid
+                </Button>
+              )}
             </div>
           </div>
           <div className="h-5 overflow-hidden rounded bg-muted">

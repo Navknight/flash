@@ -112,6 +112,7 @@ export default function BossRaid() {
         next={raid.next}
         answer={raid.answer}
         onLeave={raid.leave}
+        onEnd={() => run(raid.endRaid)}
       />
     );
   }

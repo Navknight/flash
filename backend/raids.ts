@@ -77,6 +77,11 @@ export async function setupRaidTables(db: Db) {
     primary key (raid_code, uid)
   )`);
 
+  // added for "leave" handling: players who left no longer block the raid from ending
+  await db.query(
+    `alter table raid_participants add column if not exists left_at timestamptz`,
+  );
+
   await db.query(`create table if not exists raid_answers (
     id serial primary key,
     raid_code text not null references raids(code) on delete cascade,
@@ -189,10 +194,11 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
     return rows[0] ? Math.max(0, Number(rows[0].hp)) : 0;
   }
 
-  async function leaderboard(code: string) {
+  async function leaderboard(code: string, hideLeft = false) {
     const { rows } = await db.query(
       `select uid, name, total_damage, correct, answered
-         from raid_participants where raid_code = $1
+         from raid_participants
+        where raid_code = $1 ${hideLeft ? "and left_at is null" : ""}
         order by total_damage desc, joined_at`,
       [code],
     );
@@ -215,15 +221,14 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
     );
     const raid = rows[0];
     if (!raid) throw new UserError("Raid not found");
-    const players = await leaderboard(code);
-    const dealt = players.reduce((sum, p) => sum + p.totalDamage, 0);
+    const players = await leaderboard(code, raid.status === "lobby");
     return {
       code: raid.code as string,
       title: raid.title as string,
       bossName: raid.boss_name as string,
       bossModel: raid.boss_model as string,
       bossMaxHp: raid.boss_max_hp as number,
-      hpRemaining: Math.max(0, raid.boss_max_hp - dealt),
+      hpRemaining: await hpOf(code),
       status: raid.status as string,
       isHost: raid.host_uid === uid,
       endsAt: raid.started_ms ? Number(raid.started_ms) + raid.duration_sec * 1000 : null,
@@ -265,7 +270,7 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
   async function endIfAllDone(code: string) {
     const { rows } = await db.query(
       `select count(*)::int as unfinished from raid_participants p
-        where p.raid_code = $1
+        where p.raid_code = $1 and p.left_at is null
           and p.answered < (select count(*) from raid_questions q where q.raid_code = $1)`,
       [code],
     );
@@ -364,7 +369,9 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
         if (rows[0].status === "lobby" || rows[0].status === "active") {
           const ins = await db.query(
             `insert into raid_participants (raid_code, uid, name) values ($1, $2, $3)
-             on conflict (raid_code, uid) do nothing returning uid`,
+             on conflict (raid_code, uid) do update set left_at = null
+               where raid_participants.left_at is not null
+             returning uid`,
             [code, uid, name],
           );
           await socket.join(room(code));
@@ -377,7 +384,17 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
     socket.on(
       "raid:leave",
       handle(async (p) => {
-        await socket.leave(room(normCode(p?.code)));
+        const code = normCode(p?.code);
+        await socket.leave(room(code));
+        const { rows } = await db.query(
+          `update raid_participants set left_at = now()
+            where raid_code = $1 and uid = $2 and left_at is null returning uid`,
+          [code, uid],
+        );
+        if (rows.length) {
+          nsp.to(room(code)).emit("raid:player-left", { uid });
+          await endIfAllDone(code); // maybe the leaver was the last one still playing
+        }
         return {};
       }),
     );
@@ -398,6 +415,20 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
         armTimer(code, endsAt);
         nsp.to(room(code)).emit("raid:started", { endsAt });
         return { endsAt };
+      }),
+    );
+
+    socket.on(
+      "raid:end",
+      handle(async (p) => {
+        const code = normCode(p?.code);
+        const { rows } = await db.query(
+          `select 1 from raids where code = $1 and host_uid = $2 and status = 'active'`,
+          [code, uid],
+        );
+        if (!rows.length) throw new UserError("Only the host can end an active raid");
+        await finishRaid(code, "lost");
+        return {};
       }),
     );
 

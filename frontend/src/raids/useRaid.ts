@@ -112,6 +112,15 @@ export function useRaid(uid: string | undefined) {
       }),
     );
 
+    // in the lobby, someone leaving disappears from the party list
+    s.on("raid:player-left", (p: { uid: string }) =>
+      setState((st) =>
+        st && st.status === "lobby"
+          ? { ...st, players: st.players.filter((x) => x.uid !== p.uid) }
+          : st,
+      ),
+    );
+
     s.on("raid:started", (e: { endsAt: number }) =>
       setState((st) =>
         st ? { ...st, status: "active" as const, endsAt: e.endsAt } : st,
@@ -184,6 +193,11 @@ export function useRaid(uid: string | undefined) {
     await call("raid:start", { code: codeRef.current });
   }, [call]);
 
+  // host only: finish the raid for everyone right now
+  const endRaid = useCallback(async () => {
+    await call("raid:end", { code: codeRef.current });
+  }, [call]);
+
   const next = useCallback(
     () => call<NextResult>("raid:next", { code: codeRef.current }),
     [call],
@@ -218,6 +232,7 @@ export function useRaid(uid: string | undefined) {
     create,
     join,
     start,
+    endRaid,
     next,
     answer,
     leave,
