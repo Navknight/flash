@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { useUser } from "./firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import RankCard from "@/components/RankCard";
 
 type Deck = {
   id: number;
@@ -19,12 +20,23 @@ const subjectColor = (subject: string) => {
   return `hsl(${(sum * 37) % 360} 60% 55%)`;
 };
 
+const DUELS = [
+  { name: "Easy", minutes: 15, color: "text-green-700 dark:text-green-400" },
+  {
+    name: "Medium",
+    minutes: 20,
+    color: "text-yellow-700 dark:text-yellow-400",
+  },
+  { name: "Hard", minutes: 25, color: "text-red-700 dark:text-red-400" },
+];
+
 const chip = (active: boolean) =>
   `rounded-full border px-3.5 py-1 text-sm font-semibold ${active ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-muted"}`;
 
 const Home = () => {
   const user = useUser();
   const [decks, setDecks] = useState<Deck[]>([]);
+  const [elo, setElo] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -40,9 +52,22 @@ const Home = () => {
         return r.json();
       })
       .then(setDecks)
-      .catch(() => setError("Could not load decks. Refresh the page to try again."))
+      .catch(() =>
+        setError("Could not load decks. Refresh the page to try again."),
+      )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!user) return setElo(null);
+    user
+      .getIdToken()
+      .then((token) =>
+        fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } }),
+      )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me) => setElo(me?.elo ?? null));
+  }, [user]);
 
   // React concept: derived state. Do not store the filtered list in its own
   // useState, compute it from decks + query + subject. useMemo caches the
@@ -71,81 +96,120 @@ const Home = () => {
         : "");
 
   return (
-    <div className="mx-auto mt-10 max-w-6xl px-4 pb-16">
-      <div className="mb-6 flex items-end justify-between gap-4">
-        <h1 className="text-4xl font-extrabold">Decks</h1>
-        {user && (
-          <Button variant="outline" render={<Link to="/upload" />}>
-            Upload deck
-          </Button>
-        )}
-      </div>
-
-      <Input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search decks"
-        aria-label="Search decks"
-        className="h-11 bg-card text-base"
-      />
-      <div className="mt-3 mb-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setSubject(null)}
-          className={chip(subject === null)}
-        >
-          All
-        </button>
-        {subjects.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setSubject(subject === s ? null : s)}
-            className={chip(subject === s)}
-          >
-            {s}
-          </button>
-        ))}
-        {!loading && !error && (
-          <span className="ml-auto text-sm text-muted-foreground">
-            {visible.length} decks
-          </span>
-        )}
-      </div>
-
-      <div className="overflow-hidden rounded-xl border bg-card">
-        <div className="hidden grid-cols-[1fr_180px_70px_90px] gap-4 border-b px-5 py-2.5 text-sm font-semibold text-muted-foreground sm:grid">
-          <span>Deck</span>
-          <span>Subject</span>
-          <span className="text-right">Cards</span>
-          <span />
+    <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-start gap-8 px-4 pb-16">
+      <section className="min-w-0 flex-[999_1_560px]">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <h1 className="text-4xl font-extrabold">Decks</h1>
+          {user && (
+            <Button variant="outline" render={<Link to="/upload" />}>
+              Upload deck
+            </Button>
+          )}
         </div>
-        {visible.map((d) => (
-          <div
-            key={d.id}
-            className="grid grid-cols-[1fr_80px] items-center gap-4 border-b px-5 py-3.5 last:border-b-0 hover:bg-muted/60 sm:grid-cols-[1fr_180px_70px_90px]"
+
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search decks"
+          aria-label="Search decks"
+          className="h-11 bg-card text-base"
+        />
+        <div className="mt-3 mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSubject(null)}
+            className={chip(subject === null)}
           >
-            <div className="min-w-0">
-              <p className="truncate text-base font-bold">{d.title}</p>
-              <p className="text-sm text-muted-foreground">by {d.owner}</p>
-            </div>
-            <span className="hidden items-center gap-2 sm:flex">
-              <span
-                className="size-2.5 shrink-0 rounded-sm"
-                style={{ background: subjectColor(d.subject) }}
-              />
-              <span className="truncate">{d.subject}</span>
+            All
+          </button>
+          {subjects.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSubject(subject === s ? null : s)}
+              className={chip(subject === s)}
+            >
+              {s}
+            </button>
+          ))}
+          {!loading && !error && (
+            <span className="ml-auto text-sm text-muted-foreground">
+              {visible.length} decks
             </span>
-            <span className="hidden text-right tabular-nums text-muted-foreground sm:block">
-              {d.cards}
-            </span>
-            <Button render={<Link to={`/room/${d.id}`} />}>Race</Button>
+          )}
+        </div>
+
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="hidden grid-cols-[1fr_180px_70px_90px] gap-4 border-b px-5 py-2.5 text-sm font-semibold text-muted-foreground sm:grid">
+            <span>Deck</span>
+            <span>Subject</span>
+            <span className="text-right">Cards</span>
+            <span />
           </div>
-        ))}
-        {status && (
-          <p className="px-5 py-8 text-center text-muted-foreground">{status}</p>
-        )}
-      </div>
+          {visible.map((d) => (
+            <div
+              key={d.id}
+              className="grid grid-cols-[1fr_80px] items-center gap-4 border-b px-5 py-3.5 last:border-b-0 hover:bg-muted/60 sm:grid-cols-[1fr_180px_70px_90px]"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-base font-bold">{d.title}</p>
+                <p className="text-sm text-muted-foreground">by {d.owner}</p>
+              </div>
+              <span className="hidden items-center gap-2 sm:flex">
+                <span
+                  className="size-2.5 shrink-0 rounded-sm"
+                  style={{ background: subjectColor(d.subject) }}
+                />
+                <span className="truncate">{d.subject}</span>
+              </span>
+              <span className="hidden text-right tabular-nums text-muted-foreground sm:block">
+                {d.cards}
+              </span>
+              <Button render={<Link to={`/room/${d.id}`} />}>Race</Button>
+            </div>
+          ))}
+          {status && (
+            <p className="px-5 py-8 text-center text-muted-foreground">
+              {status}
+            </p>
+          )}
+        </div>
+      </section>
+
+      <aside className="flex max-w-full flex-[1_1_300px] flex-col gap-5">
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="mb-3.5 text-xl font-extrabold">Duel</h2>
+          <div className="grid grid-cols-3 gap-2">
+            {DUELS.map((d) => (
+              <Link
+                key={d.name}
+                to="/duels"
+                className="flex flex-col items-center rounded-lg border py-3 hover:bg-muted"
+              >
+                <span className="text-3xl leading-none font-light tabular-nums">
+                  {d.minutes}
+                </span>
+                <span className={`text-sm font-extrabold ${d.color}`}>
+                  {d.name}
+                </span>
+              </Link>
+            ))}
+          </div>
+          <p className="mt-2 mb-4 text-xs text-muted-foreground">
+            Time limit in minutes
+          </p>
+          <Button className="h-10 w-full" render={<Link to="/duels" />}>
+            Ranked match
+          </Button>
+          <Link
+            to="/duels"
+            className="mt-3 block text-center text-sm font-bold hover:underline"
+          >
+            Challenge a friend
+          </Link>
+        </div>
+        {elo !== null && <RankCard elo={elo} />}
+      </aside>
     </div>
   );
 };
