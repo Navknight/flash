@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { io, type Socket } from "socket.io-client";
 import { auth } from "./firebase";
@@ -316,54 +316,59 @@ export default function Room() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Players</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {snap.players.map((p) => (
-            <div key={p.uid} className="flex flex-col gap-1">
-              <div className="flex justify-between text-sm">
-                <span>
-                  {p.name}
-                  {p.done ? " ✓" : ""}
-                </span>
-                <span className="font-mono">{p.score}</span>
-              </div>
-              {snap.phase === "race" && p.racing && (
-                <div className="h-1.5 rounded bg-muted">
-                  <div
-                    className="h-full rounded bg-primary transition-all"
-                    style={{ width: `${(100 * p.progress) / snap.total}%` }}
-                  />
+      <aside className="flex flex-col gap-5">
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="mb-4 text-xl font-extrabold">Players</h2>
+          <div className="flex flex-col gap-5">
+            {snap.players.map((p) => (
+              <div key={p.uid}>
+                <div className="flex justify-between">
+                  <span className="font-bold">
+                    {p.uid === me?.uid ? "You" : p.name}
+                    {p.done && (
+                      <span className="ml-2 text-sm font-semibold text-good">
+                        done
+                      </span>
+                    )}
+                  </span>
+                  {snap.phase === "race" && !p.racing ? (
+                    <span className="text-muted-foreground">spectating</span>
+                  ) : (
+                    <span className="tabular-nums">{p.score}</span>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+                {snap.phase === "race" && p.racing && (
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full transition-all ${p.uid === me?.uid ? "bg-yellow-500" : "bg-foreground"}`}
+                      style={{ width: `${(100 * p.progress) / snap.total}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Deck leaderboard</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm">
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="mb-3 text-lg font-extrabold">Top scores</h2>
           {board.length === 0 && (
-            <p className="text-muted-foreground">No runs yet, be the first.</p>
+            <p className="text-muted-foreground">No races on this deck yet.</p>
           )}
-          {board.map((b, i) => (
-            <div key={b.uid} className="flex justify-between">
-              <span>
-                {i + 1}. {b.name}
-              </span>
-              <span className="font-mono">
-                {b.best}{" "}
-                <span className="text-muted-foreground">· {b.games}g</span>
-              </span>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+          <div className="grid grid-cols-[20px_1fr_auto_auto] items-baseline gap-x-3 gap-y-2">
+            {board.map((b, i) => (
+              <Fragment key={b.uid}>
+                <span className="text-muted-foreground">{i + 1}</span>
+                <span className="truncate font-bold">{b.name}</span>
+                <span className="tabular-nums">{b.best}</span>
+                <span className="text-sm text-muted-foreground">
+                  {b.games} {b.games === 1 ? "game" : "games"}
+                </span>
+              </Fragment>
+            ))}
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }
