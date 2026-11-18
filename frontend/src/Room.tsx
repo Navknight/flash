@@ -150,12 +150,12 @@ export default function Room() {
   const color = (opt: string) =>
     !result
       ? opt === picked
-        ? "ring-2 ring-primary"
+        ? "border-foreground"
         : ""
       : opt === result.answer
-        ? "bg-green-600 hover:bg-green-600"
+        ? "border-good bg-good/15"
         : opt === picked
-          ? "bg-red-600 hover:bg-red-600 animate-shake"
+          ? "border-destructive bg-destructive/10 animate-shake"
           : "opacity-50";
 
   if (error)
@@ -204,23 +204,23 @@ export default function Room() {
             </div>
           </div>
           <div className="mt-5 flex flex-col gap-4">
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {q.options.map((opt, i) => (
-                <Button
+                <button
                   key={opt}
-                  variant="secondary"
-                  className={`h-auto justify-start whitespace-normal py-3 ${color(opt)}`}
+                  type="button"
+                  className={`flex items-center gap-3.5 rounded-lg border border-input bg-card px-4 py-3.5 text-left text-base font-bold hover:bg-muted ${color(opt)}`}
                   onClick={() => pick(opt)}
                 >
-                  <kbd className="mr-2 rounded border px-1.5 font-mono text-xs opacity-60">
+                  <kbd className="grid size-6 shrink-0 place-items-center rounded-md border bg-muted text-xs font-extrabold text-muted-foreground">
                     {i + 1}
                   </kbd>
                   {opt}
-                </Button>
+                </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Tip: press 1-{q.options.length} to answer
+            <p className="text-sm text-muted-foreground">
+              Press 1-{q.options.length} to answer
             </p>
           </div>
         </section>
