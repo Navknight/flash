@@ -3,8 +3,9 @@ import { useTheme } from "@/lib/theme";
 import { useSearchParams } from "react-router";
 import Editor from "@monaco-editor/react";
 import { io, type Socket } from "socket.io-client";
-import { auth } from "./firebase";
+import { auth, useUser } from "./firebase";
 import { tier } from "@/lib/tier";
+import RankCard from "@/components/RankCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -96,6 +97,20 @@ export default function Duels() {
   const [end, setEnd] = useState<EndInfo | null>(null);
   const [secs, setSecs] = useState(0);
   const [error, setError] = useState("");
+  const user = useUser();
+  const [elo, setElo] = useState<number | null>(null);
+
+  // phase is in the deps so the rating updates after a ranked match
+  useEffect(() => {
+    if (!user) return setElo(null);
+    user
+      .getIdToken()
+      .then((token) =>
+        fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } }),
+      )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me) => setElo(me?.elo ?? null));
+  }, [user, phase]);
 
   useEffect(() => {
     const s = io({
@@ -170,132 +185,103 @@ export default function Duels() {
   // ---------- lobby / waiting ----------
   if (phase === "lobby" || phase === "queue" || phase === "invite") {
     return (
-      <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-6 px-4 pb-16">
-        <h1 className="text-4xl font-extrabold">Duels</h1>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-start gap-8 px-4 pb-16">
+        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
+          <h1 className="text-4xl font-extrabold">Duels</h1>
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-        {inviteCode && phase === "lobby" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>You've been challenged</CardTitle>
-            </CardHeader>
-            <CardContent className="flex gap-2">
-              <Button onClick={() => emit("duels:accept", inviteCode)}>
-                Join match
-              </Button>
-              <Button variant="outline" onClick={() => setParams({})}>
-                Ignore
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {phase === "lobby" && (
-          <section>
-            <h2 className="text-lg font-extrabold">Difficulty</h2>
-            <p className="mb-4 text-sm text-muted-foreground">
-              You can pick more than one.
-            </p>
-            <div className="grid grid-cols-3 gap-3.5">
-              {DIFFICULTIES.map((d) => {
-                const on = difficulties.includes(d.name);
-                return (
-                  <button
-                    key={d.name}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => toggle(d.name)}
-                    className={`relative flex h-36 flex-col items-center justify-center rounded-xl bg-card hover:bg-muted ${on ? "border-2 border-foreground" : "border border-input"}`}
-                  >
-                    {on && (
-                      <span className="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-foreground text-xs font-black text-background">
-                        ✓
-                      </span>
-                    )}
-                    <span className="text-5xl leading-none font-light tabular-nums">
-                      {d.minutes}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      minutes
-                    </span>
-                    <span className={`text-lg font-extrabold ${d.color}`}>
-                      {d.name}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-7 flex flex-wrap items-end gap-3.5">
-              <label className="flex flex-col gap-1.5 text-sm font-bold">
-                Language
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="h-12 min-w-40 rounded-lg border border-input bg-card px-3 text-base font-semibold"
-                >
-                  <option value="python">Python</option>
-                  <option value="javascript">JavaScript</option>
-                  <option value="cpp">C++</option>
-                  <option value="java">Java</option>
-                </select>
-              </label>
-              <Button
-                className="h-12 px-7 text-base"
-                disabled={difficulties.length === 0}
-                onClick={() => emit("duels:queue", difficulties)}
-              >
-                Find match
-              </Button>
-              <Button
-                variant="outline"
-                className="h-12 px-6 text-base"
-                disabled={difficulties.length === 0}
-                onClick={() => emit("duels:invite", difficulties[0])}
-              >
-                Challenge a friend
-              </Button>
-            </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Friend matches are unrated.
-            </p>
-          </section>
-        )}
-
-        {phase === "queue" && (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-3 py-8">
-              <p className="animate-pulse">Looking for an opponent...</p>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  emit("duels:cancel");
-                  setPhase("lobby");
-                }}
-              >
-                Cancel
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {phase === "invite" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Send this link to a friend</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <code className="rounded bg-muted p-2 text-sm">{`${location.origin}/duels?invite=${myInvite}`}</code>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() =>
-                    navigator.clipboard.writeText(
-                      `${location.origin}/duels?invite=${myInvite}`,
-                    )
-                  }
-                >
-                  Copy link
+          {inviteCode && phase === "lobby" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>You've been challenged</CardTitle>
+              </CardHeader>
+              <CardContent className="flex gap-2">
+                <Button onClick={() => emit("duels:accept", inviteCode)}>
+                  Join match
                 </Button>
+                <Button variant="outline" onClick={() => setParams({})}>
+                  Ignore
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {phase === "lobby" && (
+            <section>
+              <h2 className="text-lg font-extrabold">Difficulty</h2>
+              <p className="mb-4 text-sm text-muted-foreground">
+                You can pick more than one.
+              </p>
+              <div className="grid grid-cols-3 gap-3.5">
+                {DIFFICULTIES.map((d) => {
+                  const on = difficulties.includes(d.name);
+                  return (
+                    <button
+                      key={d.name}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggle(d.name)}
+                      className={`relative flex h-36 flex-col items-center justify-center rounded-xl bg-card hover:bg-muted ${on ? "border-2 border-foreground" : "border border-input"}`}
+                    >
+                      {on && (
+                        <span className="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-foreground text-xs font-black text-background">
+                          ✓
+                        </span>
+                      )}
+                      <span className="text-5xl leading-none font-light tabular-nums">
+                        {d.minutes}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        minutes
+                      </span>
+                      <span className={`text-lg font-extrabold ${d.color}`}>
+                        {d.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-7 flex flex-wrap items-end gap-3.5">
+                <label className="flex flex-col gap-1.5 text-sm font-bold">
+                  Language
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="h-12 min-w-40 rounded-lg border border-input bg-card px-3 text-base font-semibold"
+                  >
+                    <option value="python">Python</option>
+                    <option value="javascript">JavaScript</option>
+                    <option value="cpp">C++</option>
+                    <option value="java">Java</option>
+                  </select>
+                </label>
+                <Button
+                  className="h-12 px-7 text-base"
+                  disabled={difficulties.length === 0}
+                  onClick={() => emit("duels:queue", difficulties)}
+                >
+                  Find match
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-12 px-6 text-base"
+                  disabled={difficulties.length === 0}
+                  onClick={() => emit("duels:invite", difficulties[0])}
+                >
+                  Challenge a friend
+                </Button>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Friend matches are unrated.
+              </p>
+            </section>
+          )}
+
+          {phase === "queue" && (
+            <Card>
+              <CardContent className="flex flex-col items-center gap-3 py-8">
+                <p className="animate-pulse">Looking for an opponent...</p>
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -305,13 +291,60 @@ export default function Duels() {
                 >
                   Cancel
                 </Button>
-              </div>
-              <p className="animate-pulse text-sm text-muted-foreground">
-                Waiting for your friend to join...
-              </p>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          )}
+
+          {phase === "invite" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Send this link to a friend</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <code className="rounded bg-muted p-2 text-sm">{`${location.origin}/duels?invite=${myInvite}`}</code>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() =>
+                      navigator.clipboard.writeText(
+                        `${location.origin}/duels?invite=${myInvite}`,
+                      )
+                    }
+                  >
+                    Copy link
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      emit("duels:cancel");
+                      setPhase("lobby");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <p className="animate-pulse text-sm text-muted-foreground">
+                  Waiting for your friend to join...
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+        <aside className="flex max-w-full flex-[1_1_300px] flex-col gap-5">
+          {elo !== null && <RankCard elo={elo} />}
+          <div className="rounded-xl border bg-card p-5">
+            <h2 className="mb-3 text-lg font-extrabold">Rating</h2>
+            <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 tabular-nums">
+              <span className="text-muted-foreground">Win vs same rating</span>
+              <span>+16</span>
+              <span className="text-muted-foreground">Loss vs same rating</span>
+              <span>-16</span>
+              <span className="text-muted-foreground">Match range</span>
+              <span>±100</span>
+              <span className="text-muted-foreground">Range grows</span>
+              <span>+50 / 10s</span>
+            </div>
+          </div>
+        </aside>
       </div>
     );
   }
