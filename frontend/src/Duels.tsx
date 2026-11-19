@@ -60,9 +60,13 @@ type EndInfo = {
 };
 
 const DIFFICULTIES = [
-  { name: "Easy", minutes: 15, color: "text-green-500" },
-  { name: "Medium", minutes: 20, color: "text-yellow-500" },
-  { name: "Hard", minutes: 25, color: "text-red-500" },
+  { name: "Easy", minutes: 15, color: "text-green-700 dark:text-green-400" },
+  {
+    name: "Medium",
+    minutes: 20,
+    color: "text-yellow-700 dark:text-yellow-400",
+  },
+  { name: "Hard", minutes: 25, color: "text-red-700 dark:text-red-400" },
 ];
 const STARTERS: Record<string, string> = {
   python: "import sys\n\ndata = sys.stdin.read().split()\n\n",
@@ -166,14 +170,9 @@ export default function Duels() {
   // ---------- lobby / waiting ----------
   if (phase === "lobby" || phase === "queue" || phase === "invite") {
     return (
-      <div className="mx-auto mt-10 flex max-w-xl flex-col gap-6 px-4">
-        <div className="text-center">
-          <h1 className="mx-auto text-3xl font-bold">Duels</h1>
-          <p className="text-muted-foreground">
-            Same problem, two players. First to pass every test wins.
-          </p>
-        </div>
-        {error && <p className="text-center text-sm text-red-500">{error}</p>}
+      <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-6 px-4 pb-16">
+        <h1 className="text-4xl font-extrabold">Duels</h1>
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
         {inviteCode && phase === "lobby" && (
           <Card>
@@ -192,60 +191,75 @@ export default function Duels() {
         )}
 
         {phase === "lobby" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Set up the match</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <div>
-                <p className="mb-2 text-sm text-muted-foreground">
-                  Difficulties you're happy to play. The problem sets the timer.
-                </p>
-                <div className="flex gap-2">
-                  {DIFFICULTIES.map((d) => (
-                    <Button
-                      key={d.name}
-                      variant={
-                        difficulties.includes(d.name) ? "secondary" : "outline"
-                      }
-                      onClick={() => toggle(d.name)}
-                    >
-                      <span className={d.color}>{d.name}</span>
-                      <span className="text-muted-foreground">
-                        {d.minutes}m
+          <section>
+            <h2 className="text-lg font-extrabold">Difficulty</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              You can pick more than one.
+            </p>
+            <div className="grid grid-cols-3 gap-3.5">
+              {DIFFICULTIES.map((d) => {
+                const on = difficulties.includes(d.name);
+                return (
+                  <button
+                    key={d.name}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggle(d.name)}
+                    className={`relative flex h-36 flex-col items-center justify-center rounded-xl bg-card hover:bg-muted ${on ? "border-2 border-foreground" : "border border-input"}`}
+                  >
+                    {on && (
+                      <span className="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-foreground text-xs font-black text-background">
+                        ✓
                       </span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
+                    )}
+                    <span className="text-5xl leading-none font-light tabular-nums">
+                      {d.minutes}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      minutes
+                    </span>
+                    <span className={`text-lg font-extrabold ${d.color}`}>
+                      {d.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-7 flex flex-wrap items-end gap-3.5">
+              <label className="flex flex-col gap-1.5 text-sm font-bold">
                 Language
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="rounded-md border bg-background px-2 py-1"
+                  className="h-12 min-w-40 rounded-lg border border-input bg-card px-3 text-base font-semibold"
                 >
                   <option value="python">Python</option>
                   <option value="javascript">JavaScript</option>
                   <option value="cpp">C++</option>
                   <option value="java">Java</option>
                 </select>
-              </div>
+              </label>
               <Button
+                className="h-12 px-7 text-base"
                 disabled={difficulties.length === 0}
                 onClick={() => emit("duels:queue", difficulties)}
               >
-                Find ranked match
+                Find match
               </Button>
               <Button
                 variant="outline"
+                className="h-12 px-6 text-base"
                 disabled={difficulties.length === 0}
                 onClick={() => emit("duels:invite", difficulties[0])}
               >
-                Play a friend (casual, {difficulties[0] ?? "pick a difficulty"})
+                Challenge a friend
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Friend matches are unrated.
+            </p>
+          </section>
         )}
 
         {phase === "queue" && (
@@ -342,7 +356,13 @@ export default function Duels() {
               </div>
             );
           })}
-          <span className={'font-mono text-lg ${secs<=60 ? "animate-pulse text-red-500":""}'}>{clock(secs)}</span>
+          <span
+            className={
+              'font-mono text-lg ${secs<=60 ? "animate-pulse text-red-500":""}'
+            }
+          >
+            {clock(secs)}
+          </span>
           <Button
             variant="outline"
             size="sm"
