@@ -352,75 +352,97 @@ export default function Duels() {
   // ---------- match ----------
   const diff = DIFFICULTIES.find((d) => d.name === match?.problem.difficulty);
   const won = end?.winner === me;
+  // always show yourself on the left
+  const all = match?.players ?? [];
+  const players = [
+    ...all.filter((p) => p.uid === me),
+    ...all.filter((p) => p.uid !== me),
+  ];
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold">{match?.problem.title}</h1>
-          <span className={`text-sm ${diff?.color ?? ""}`}>
-            {match?.problem.difficulty}
-          </span>
-          {!match?.ranked && (
-            <span className="text-xs text-muted-foreground">casual</span>
-          )}
-        </div>
-        <div className="flex items-center gap-6 text-sm">
-          {match?.players.map((p) => {
-            const t = tier(p.elo);
-            return (
-              <div key={p.uid} className="flex min-w-40 flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-6 rounded-xl border bg-card px-5 py-4">
+        {players.map((p, i) => {
+          const t = tier(p.elo);
+          return (
+            <div
+              key={p.uid}
+              className={`min-w-0 flex-[1_1_220px] ${i === 1 ? "order-3" : ""}`}
+            >
+              <div className="flex justify-between gap-2">
                 <span>
-                  {p.uid === me ? "You" : p.name}{" "}
-                  <span className={t.color}>
+                  <b className="font-extrabold">
+                    {p.uid === me ? "You" : p.name}
+                  </b>{" "}
+                  <span className={`font-bold ${t.color}`}>
                     {t.name} {p.elo}
                   </span>
                 </span>
-                <div className="h-1.5 rounded bg-muted">
-                  <div
-                    className="h-full rounded bg-primary transition-all"
-                    style={{
-                      width: `${(100 * p.passed) / (match?.total || 1)}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {p.passed}/{match?.total} tests · {p.submits} submits
+                <span className="text-muted-foreground tabular-nums">
+                  {p.passed}/{match?.total} tests
                 </span>
               </div>
-            );
-          })}
-          <span
-            className={
-              'font-mono text-lg ${secs<=60 ? "animate-pulse text-red-500":""}'
-            }
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={`h-full rounded-full transition-all ${p.uid === me ? "bg-yellow-500" : "bg-sky-500"}`}
+                  style={{
+                    width: `${(100 * p.passed) / (match?.total || 1)}%`,
+                  }}
+                />
+              </div>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                {p.submits} {p.submits === 1 ? "submission" : "submissions"}
+              </p>
+            </div>
+          );
+        })}
+        <div className="order-2 text-center">
+          <p
+            className={`text-5xl leading-none font-extralight tabular-nums ${secs <= 60 ? "animate-pulse text-red-500" : ""}`}
           >
             {clock(secs)}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={phase !== "match"}
-            onClick={() => emit("duels:forfeit")}
-          >
-            Forfeit
-          </Button>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {match?.ranked ? "Ranked" : "Unrated"}
+          </p>
         </div>
+        <Button
+          variant="outline"
+          className="order-4"
+          disabled={phase !== "match"}
+          onClick={() => emit("duels:forfeit")}
+        >
+          Forfeit
+        </Button>
       </div>
 
       <div className="grid min-h-0 flex-1 gap-3 md:grid-cols-2">
-        <div className="overflow-auto rounded-md border p-4">
+        <div className="overflow-auto rounded-xl border bg-card p-5">
+          <div className="mb-3 flex items-center gap-3">
+            <h1 className="text-2xl font-extrabold">{match?.problem.title}</h1>
+            <span className={`text-sm font-extrabold ${diff?.color ?? ""}`}>
+              {match?.problem.difficulty}
+            </span>
+          </div>
           <p className="whitespace-pre-wrap leading-relaxed">
             {match?.problem.description}
           </p>
           {match?.problem.samples.map((t, i) => (
             <div key={i} className="mt-4 grid grid-cols-2 gap-2 text-sm">
               <div>
-                <p className="text-muted-foreground">Input</p>
-                <pre className="rounded bg-muted p-2 font-mono">{t.input}</pre>
+                <p className="mb-1 font-semibold text-muted-foreground">
+                  Sample input
+                </p>
+                <pre className="rounded-md border bg-muted p-3 font-mono">
+                  {t.input}
+                </pre>
               </div>
               <div>
-                <p className="text-muted-foreground">Output</p>
-                <pre className="rounded bg-muted p-2 font-mono">{t.output}</pre>
+                <p className="mb-1 font-semibold text-muted-foreground">
+                  Sample output
+                </p>
+                <pre className="rounded-md border bg-muted p-3 font-mono">
+                  {t.output}
+                </pre>
               </div>
             </div>
           ))}
