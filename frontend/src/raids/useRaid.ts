@@ -6,8 +6,10 @@ import type {
   CreateInput,
   EndInfo,
   FeedItem,
+  NewQuestion,
   NextResult,
   RaidState,
+  RaidSummary,
 } from "./types";
 
 type Reply = { ok: boolean; error?: string };
@@ -198,6 +200,22 @@ export function useRaid(uid: string | undefined) {
     await call("raid:end", { code: codeRef.current });
   }, [call]);
 
+  // raids I have played (newest first), for the history list
+  const mine = useCallback(
+    async () => (await call<{ raids: RaidSummary[] }>("raid:mine")).raids,
+    [call],
+  );
+
+  // multiple choice cards of a deck, converted into raid questions
+  const deckQuestions = useCallback(
+    (deckId: number) =>
+      call<{ questions: NewQuestion[]; skipped: number }>(
+        "raid:deck-questions",
+        { deckId },
+      ),
+    [call],
+  );
+
   const next = useCallback(
     () => call<NextResult>("raid:next", { code: codeRef.current }),
     [call],
@@ -233,6 +251,8 @@ export function useRaid(uid: string | undefined) {
     join,
     start,
     endRaid,
+    mine,
+    deckQuestions,
     next,
     answer,
     leave,

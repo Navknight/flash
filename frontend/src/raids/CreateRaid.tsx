@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import type { BossModel, CreateInput, NewQuestion } from "./types";
+import type { BossModel, CreateInput, DeckInfo, NewQuestion } from "./types";
 
 const BOSSES: { id: BossModel; label: string; name: string }[] = [
   { id: "dragon", label: "Dragon", name: "The Ancient Dragon" },
@@ -39,9 +39,12 @@ function parseBlocks(text: string): NewQuestion[] {
 type Props = {
   onCreate: (input: CreateInput) => Promise<void>;
   onCancel: () => void;
+  onImportDeck: (
+    deckId: number,
+  ) => Promise<{ questions: NewQuestion[]; skipped: number }>;
 };
 
-export default function CreateRaid({ onCreate, onCancel }: Props) {
+export default function CreateRaid({ onCreate, onCancel, onImportDeck }: Props) {
   const [title, setTitle] = useState("");
   const [bossModel, setBossModel] = useState<BossModel>("dragon");
   const [bossName, setBossName] = useState("The Ancient Dragon");
@@ -51,6 +54,45 @@ export default function CreateRaid({ onCreate, onCancel }: Props) {
   const [bulk, setBulk] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [decks, setDecks] = useState<DeckInfo[]>([]);
+  const [deckId, setDeckId] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [note, setNote] = useState("");
+
+  // the decks that exist in the app (the same list the Decks page uses)
+  useEffect(() => {
+    fetch("/api/decks")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list: DeckInfo[]) => {
+        setDecks(list);
+        if (list.length) setDeckId(String(list[0].id));
+      })
+      .catch(() => {});
+  }, []);
+
+  const importDeck = async () => {
+    setError("");
+    setNote("");
+    setImporting(true);
+    try {
+      const { questions: imported, skipped } = await onImportDeck(
+        Number(deckId),
+      );
+      setQuestions((qs) =>
+        [...qs.filter((q) => q.prompt.trim()), ...imported].slice(0, 50),
+      );
+      setNote(
+        `Added ${imported.length} questions` +
+          (skipped
+            ? ` (${skipped} cards skipped: no choices, or too long)`
+            : ""),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const patch = (i: number, change: Partial<NewQuestion>) =>
     setQuestions((qs) => qs.map((q, j) => (j === i ? { ...q, ...change } : q)));
@@ -148,6 +190,39 @@ export default function CreateRaid({ onCreate, onCancel }: Props) {
             Each correct answer deals about 100-150 damage, depending on how
             fast it is. Pick an HP your group can realistically beat.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Import from a deck</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <select
+            value={deckId}
+            onChange={(e) => setDeckId(e.target.value)}
+            disabled={decks.length === 0}
+            className="rounded-md border bg-background px-2 py-2 text-sm"
+          >
+            {decks.length === 0 && <option>No decks yet</option>}
+            {decks.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.title} ({d.subject}, {d.cards} cards)
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Cards with multiple choice answers become questions, up to 50 picked
+            at random.
+          </p>
+          <Button
+            variant="outline"
+            disabled={!deckId || importing}
+            onClick={importDeck}
+          >
+            {importing ? "Importing..." : "Add questions from this deck"}
+          </Button>
+          {note && <p className="text-sm text-green-500">{note}</p>}
         </CardContent>
       </Card>
 

@@ -115,6 +115,15 @@ function newCode(): string {
   return s;
 }
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function validateCreate(p: any) {
   if (!isStr(p?.title, 1, 80)) throw new UserError("Title must be 1-80 characters");
   if (!isStr(p?.bossName, 1, 60)) throw new UserError("Boss name must be 1-60 characters");
@@ -418,6 +427,36 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
       }),
     );
 
+    // the raids this user has played, newest first (for the history list)
+    socket.on(
+      "raid:mine",
+      handle(async () => {
+        const { rows } = await db.query(
+          `select r.code, r.title, r.boss_name, r.boss_model, r.status, r.created_at,
+                  p.total_damage, p.correct, p.answered,
+                  (select count(*)::int from raid_questions q where q.raid_code = r.code) as question_count
+             from raid_participants p join raids r on r.code = p.raid_code
+            where p.uid = $1 and (p.left_at is null or r.status in ('won', 'lost'))
+            order by r.created_at desc limit 20`,
+          [uid],
+        );
+        return {
+          raids: rows.map((r) => ({
+            code: r.code as string,
+            title: r.title as string,
+            bossName: r.boss_name as string,
+            bossModel: r.boss_model as string,
+            status: r.status as string,
+            createdAt: new Date(r.created_at).toISOString(),
+            totalDamage: r.total_damage as number,
+            correct: r.correct as number,
+            answered: r.answered as number,
+            questionCount: r.question_count as number,
+          })),
+        };
+      }),
+    );
+
     socket.on(
       "raid:end",
       handle(async (p) => {
@@ -429,6 +468,44 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
         if (!rows.length) throw new UserError("Only the host can end an active raid");
         await finishRaid(code, "lost");
         return {};
+      }),
+    );
+
+    // turn a deck's multiple choice cards into raid questions (read only, decks are untouched)
+    socket.on(
+      "raid:deck-questions",
+      handle(async (p) => {
+        if (!isInt(p?.deckId)) throw new UserError("Pick a deck");
+        const { rows } = await db.query(
+          `select prompt, answer, choices from cards where deck_id = $1`,
+          [p.deckId],
+        );
+        if (rows.length === 0) throw new UserError("That deck has no cards");
+
+        // raid questions are shorter than deck cards, so skip cards that don't fit
+        const usable = rows.filter(
+          (r) =>
+            Array.isArray(r.choices) &&
+            r.choices.length === 3 &&
+            r.prompt.length <= 300 &&
+            r.answer.length <= 120 &&
+            r.choices.every((c: string) => c.trim() && c.length <= 120),
+        );
+        const questions = shuffle(usable)
+          .slice(0, 50)
+          .map((r) => {
+            const choices = shuffle([r.answer as string, ...(r.choices as string[])]);
+            return {
+              prompt: r.prompt as string,
+              choices,
+              correctIndex: choices.indexOf(r.answer),
+            };
+          });
+        if (questions.length === 0)
+          throw new UserError(
+            "That deck has no multiple choice cards that fit (question up to 300 characters)",
+          );
+        return { questions, skipped: rows.length - questions.length };
       }),
     );
 

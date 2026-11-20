@@ -64,3 +64,26 @@ export type CreateInput = {
   durationMin: number;
   questions: NewQuestion[];
 };
+
+// one row of the "my raids" history list
+export type RaidSummary = {
+  code: string;
+  title: string;
+  bossName: string;
+  bossModel: BossModel;
+  status: RaidStatus;
+  createdAt: string; // ISO date
+  totalDamage: number;
+  correct: number;
+  answered: number;
+  questionCount: number;
+};
+
+// a deck as listed by GET /api/decks
+export type DeckInfo = {
+  id: number;
+  title: string;
+  subject: string;
+  owner: string;
+  cards: number;
+};

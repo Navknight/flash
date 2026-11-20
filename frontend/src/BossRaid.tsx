@@ -4,6 +4,7 @@ import { useUser } from "./firebase";
 import { useRaid } from "./raids/useRaid";
 import CreateRaid from "./raids/CreateRaid";
 import Battle from "./raids/Battle";
+import MyRaids from "./raids/MyRaids";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -186,6 +187,7 @@ export default function BossRaid() {
           setCreating(false);
         }}
         onCancel={() => setCreating(false)}
+        onImportDeck={raid.deckQuestions}
       />
     );
   }
@@ -256,6 +258,12 @@ export default function BossRaid() {
           </Button>
         </CardContent>
       </Card>
+
+      <MyRaids
+        connected={raid.connected}
+        load={raid.mine}
+        onOpen={(c) => joinWith(c)}
+      />
     </div>
   );
 }
