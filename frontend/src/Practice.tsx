@@ -58,7 +58,11 @@ export default function Practice({
     if (!card) return;
 
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key === " " || e.key === "Enter") && e.target instanceof HTMLButtonElement) return;
+      if (
+        (e.key === " " || e.key === "Enter") &&
+        e.target instanceof HTMLButtonElement
+      )
+        return;
 
       if (e.key === " ") {
         e.preventDefault();
@@ -98,7 +102,7 @@ export default function Practice({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm font-semibold text-muted-foreground">
           Card {i + 1}/{deck.length}
         </p>
         <Button variant="ghost" size="sm" onClick={reshuffle}>
@@ -108,19 +112,22 @@ export default function Practice({
       <button
         type="button"
         onClick={() => setFlipped(!flipped)}
-        className="h-48 [perspective:1000px]"
+        className="h-56 [perspective:1000px]"
       >
         <div
           key={i + card.prompt}
           className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] ${flipped ? "[transform:rotateY(180deg)]" : ""}`}
         >
           <div
-            className={`absolute inset-0 flex items-center justify-center rounded-xl border bg-card p-6 text-lg transition-opacity delay-250 duration-0 [backface-visibility:hidden] ${flipped ? "opacity-0" : ""}`}
+            className={`absolute inset-0 flex flex-col overflow-hidden rounded bg-paper text-left text-[#1c2026] shadow-[0_1px_0_var(--border),0_8px_20px_-12px_rgba(28,32,38,0.35)] transition-opacity delay-250 duration-0 [backface-visibility:hidden] ${flipped ? "opacity-0" : ""}`}
           >
-            {card.prompt}
+            <span className="h-9 shrink-0 border-b-2 border-rule" />
+            <span className="flex-1 bg-[repeating-linear-gradient(transparent_0_31px,var(--lines)_31px_32px)] px-6 pt-1 text-xl leading-8 font-bold">
+              {card.prompt}
+            </span>
           </div>
           <div
-            className={`absolute inset-0 flex items-center justify-center rounded-xl border bg-primary/10 p-6 text-lg transition-opacity delay-250 duration-0 [backface-visibility:hidden] [transform:rotateY(180deg)] ${flipped ? "" : "opacity-0"}`}
+            className={`absolute inset-0 flex items-center justify-center rounded bg-paper p-6 text-xl font-bold text-[#1c2026] shadow-[0_1px_0_var(--border),0_8px_20px_-12px_rgba(28,32,38,0.35)] transition-opacity delay-250 duration-0 [backface-visibility:hidden] [transform:rotateY(180deg)] ${flipped ? "" : "opacity-0"}`}
           >
             {card.answer}
           </div>
@@ -128,7 +135,7 @@ export default function Practice({
       </button>
 
       <p className="text-xs text-muted-foreground">
-        Space to flip · ← previous · Enter or → got it · M missed it
+        Space to flip, ← back, Enter or → got it, M missed it
       </p>
       <div className="flex gap-2">
         {i > 0 && (
