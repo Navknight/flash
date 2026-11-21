@@ -15,14 +15,14 @@ export default function RankCard({ elo }: { elo: number }) {
         <h2 className={`text-xl font-extrabold ${t.color}`}>{t.name}</h2>
         <span className="text-3xl font-light tabular-nums">{elo}</span>
       </div>
-      <div className="relative mt-5 mb-2 flex h-1.5 overflow-hidden rounded-full">
-        {[...TIERS].reverse().map((x) => (
-          <span key={x.name} className={`flex-1 ${x.bar}`} />
-        ))}
-      </div>
-      <div className="relative -mt-[18px] mb-3 h-4">
+      <div className="relative mt-5 mb-2">
+        <div className="flex h-1.5 overflow-hidden rounded-sm">
+          {[...TIERS].reverse().map((x) => (
+            <span key={x.name} className={`flex-1 ${x.bar}`} />
+          ))}
+        </div>
         <span
-          className="absolute h-4 w-1 -translate-x-1/2 rounded-full bg-foreground"
+          className="absolute -top-1 h-3.5 w-1 -translate-x-1/2 rounded-sm bg-foreground"
           style={{ left: `${pos * 100}%` }}
         />
       </div>

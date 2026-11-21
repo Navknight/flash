@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { tier } from "@/lib/tier";
 import RankCard from "@/components/RankCard";
+import Panel from "@/components/Panel";
 
 type Match = {
   id: string;
@@ -98,8 +99,8 @@ export default function Profile() {
         ))}
       </div>
 
-      <div className="mt-8 flex flex-wrap items-start gap-8">
-        <section className="min-w-0 flex-[999_1_560px]">
+      <div className="with-sidebar mt-8">
+        <section className="min-w-0">
           <h2 className="mb-3 text-xl font-extrabold">Recent duels</h2>
           <div className="overflow-x-auto rounded-xl border bg-card">
             {p.matches.length === 0 ? (
@@ -161,10 +162,9 @@ export default function Profile() {
           </div>
         </section>
 
-        <aside className="flex max-w-full flex-[1_1_300px] flex-col gap-5">
+        <aside className="flex flex-col gap-5">
           <RankCard elo={p.elo} />
-          <div className="rounded-xl border bg-card p-5">
-            <h2 className="mb-3 text-lg font-extrabold">Decks</h2>
+          <Panel title="Decks">
             {p.decks.length === 0 && (
               <p className="text-muted-foreground">No decks uploaded.</p>
             )}
@@ -182,7 +182,7 @@ export default function Profile() {
                 </Link>
               ))}
             </div>
-          </div>
+          </Panel>
         </aside>
       </div>
     </div>

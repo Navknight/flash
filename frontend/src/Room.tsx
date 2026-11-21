@@ -1,10 +1,12 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { io, type Socket } from "socket.io-client";
 import { auth } from "./firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Practice from "./Practice";
+import IndexCard from "@/components/IndexCard";
+import Panel from "@/components/Panel";
 
 type PlayerInfo = {
   uid: string;
@@ -169,7 +171,7 @@ export default function Room() {
   const missed = history.filter((h) => !h.correct);
 
   return (
-    <div className="mx-auto mt-8 grid max-w-6xl items-start gap-8 px-4 pb-16 md:grid-cols-[1fr_300px]">
+    <div className="with-sidebar mx-auto mt-8 max-w-6xl px-4 pb-16">
       {racing ? (
         <section>
           <div className="mb-4 flex items-end justify-between gap-4">
@@ -187,11 +189,8 @@ export default function Room() {
               <p className="text-xs text-muted-foreground">sec</p>
             </div>
           </div>
-          <div className="overflow-hidden rounded bg-paper text-[#1c2026] shadow-[0_1px_0_var(--border),0_10px_24px_-14px_rgba(28,32,38,0.35)]">
-            <div className="flex h-12 items-center justify-end border-b-2 border-rule px-8 text-sm text-[#5b6370]">
-              {q.index + 1}
-            </div>
-            <div className="flex min-h-44 flex-col gap-4 bg-[repeating-linear-gradient(transparent_0_35px,var(--lines)_35px_36px)] px-8 pt-2 pb-9">
+          <IndexCard corner={q.index + 1}>
+            <div className="flex min-h-40 flex-col gap-4">
               {q.imageUrl && (
                 <img
                   src={q.imageUrl}
@@ -200,9 +199,9 @@ export default function Room() {
                   onError={(e) => (e.currentTarget.style.display = "none")}
                 />
               )}
-              <p className="text-3xl leading-9 font-extrabold">{q.prompt}</p>
+              <p className="text-3xl font-extrabold">{q.prompt}</p>
             </div>
-          </div>
+          </IndexCard>
           <div className="mt-5 flex flex-col gap-4">
             <div className="grid gap-3 sm:grid-cols-2">
               {q.options.map((opt, i) => (
@@ -317,8 +316,7 @@ export default function Room() {
       )}
 
       <aside className="flex flex-col gap-5">
-        <div className="rounded-xl border bg-card p-5">
-          <h2 className="mb-4 text-xl font-extrabold">Players</h2>
+        <Panel title="Players">
           <div className="flex flex-col gap-5">
             {snap.players.map((p) => (
               <div key={p.uid}>
@@ -350,20 +348,19 @@ export default function Room() {
               </div>
             ))}
           </div>
-        </div>
+        </Panel>
 
-        <div className="rounded-xl border bg-card p-5">
-          <h2 className="mb-3 text-lg font-extrabold">Top scores</h2>
+        <Panel title="Top scores">
           {board.length === 0 && (
             <p className="text-muted-foreground">No races on this deck yet.</p>
           )}
-          <div className="grid grid-cols-[20px_1fr_auto_auto] items-baseline gap-x-3 gap-y-2">
+          <div className="flex flex-col gap-2">
             {board.map((b, i) => (
-              <Fragment key={b.uid}>
-                <span className="text-muted-foreground">{i + 1}</span>
+              <div key={b.uid} className="flex items-baseline gap-3">
+                <span className="w-4 text-muted-foreground">{i + 1}</span>
                 <Link
                   to={`/u/${b.uid}`}
-                  className="truncate font-bold hover:underline"
+                  className="flex-1 truncate font-bold hover:underline"
                 >
                   {b.name}
                 </Link>
@@ -371,10 +368,10 @@ export default function Room() {
                 <span className="text-sm text-muted-foreground">
                   {b.games} {b.games === 1 ? "game" : "games"}
                 </span>
-              </Fragment>
+              </div>
             ))}
           </div>
-        </div>
+        </Panel>
       </aside>
     </div>
   );

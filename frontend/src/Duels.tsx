@@ -6,6 +6,7 @@ import { io, type Socket } from "socket.io-client";
 import { auth, useUser } from "./firebase";
 import { tier } from "@/lib/tier";
 import RankCard from "@/components/RankCard";
+import Panel from "@/components/Panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -185,8 +186,8 @@ export default function Duels() {
   // ---------- lobby / waiting ----------
   if (phase === "lobby" || phase === "queue" || phase === "invite") {
     return (
-      <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-start gap-8 px-4 pb-16">
-        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
+      <div className="with-sidebar mx-auto mt-10 max-w-6xl px-4 pb-16">
+        <div className="flex min-w-0 flex-col gap-6">
           <h1 className="text-4xl font-extrabold">Duels</h1>
           {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -329,11 +330,10 @@ export default function Duels() {
             </Card>
           )}
         </div>
-        <aside className="flex max-w-full flex-[1_1_300px] flex-col gap-5">
+        <aside className="flex flex-col gap-5">
           {elo !== null && <RankCard elo={elo} />}
-          <div className="rounded-xl border bg-card p-5">
-            <h2 className="mb-3 text-lg font-extrabold">Rating</h2>
-            <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 tabular-nums">
+          <Panel title="Rating">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 tabular-nums">
               <span className="text-muted-foreground">Win vs same rating</span>
               <span>+16</span>
               <span className="text-muted-foreground">Loss vs same rating</span>
@@ -343,7 +343,7 @@ export default function Duels() {
               <span className="text-muted-foreground">Range grows</span>
               <span>+50 / 10s</span>
             </div>
-          </div>
+          </Panel>
         </aside>
       </div>
     );
@@ -366,7 +366,7 @@ export default function Duels() {
           return (
             <div
               key={p.uid}
-              className={`min-w-0 flex-[1_1_220px] ${i === 1 ? "order-3" : ""}`}
+              className={`min-w-52 flex-1 ${i === 1 ? "order-3" : ""}`}
             >
               <div className="flex justify-between gap-2">
                 <span>

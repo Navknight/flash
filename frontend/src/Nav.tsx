@@ -28,7 +28,7 @@ export default function Nav() {
   }, [user, pathname]);
 
   const link = ({ isActive }: { isActive: boolean }) =>
-    `border-b-[3px] py-5 text-[15px] font-bold transition-colors ${isActive ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`;
+    `border-b-2 py-5 font-bold transition-colors ${isActive ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`;
   const t = me && tier(me.elo);
 
   return (

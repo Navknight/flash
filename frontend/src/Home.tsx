@@ -4,6 +4,7 @@ import { useUser } from "./firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import RankCard from "@/components/RankCard";
+import Panel from "@/components/Panel";
 
 type Deck = {
   id: number;
@@ -96,8 +97,8 @@ const Home = () => {
         : "");
 
   return (
-    <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-start gap-8 px-4 pb-16">
-      <section className="min-w-0 flex-[999_1_560px]">
+    <div className="with-sidebar mx-auto mt-10 max-w-6xl px-4 pb-16">
+      <section className="min-w-0">
         <div className="mb-6 flex items-end justify-between gap-4">
           <h1 className="text-4xl font-extrabold">Decks</h1>
           {user && (
@@ -140,7 +141,7 @@ const Home = () => {
         </div>
 
         <div className="overflow-hidden rounded-xl border bg-card">
-          <div className="hidden grid-cols-[1fr_180px_70px_90px] gap-4 border-b px-5 py-2.5 text-sm font-semibold text-muted-foreground sm:grid">
+          <div className="deck-row hidden border-b px-5 py-2.5 text-sm font-semibold text-muted-foreground sm:grid">
             <span>Deck</span>
             <span>Subject</span>
             <span className="text-right">Cards</span>
@@ -149,7 +150,7 @@ const Home = () => {
           {visible.map((d) => (
             <div
               key={d.id}
-              className="grid grid-cols-[1fr_80px] items-center gap-4 border-b px-5 py-3.5 last:border-b-0 hover:bg-muted/60 sm:grid-cols-[1fr_180px_70px_90px]"
+              className="deck-row border-b px-5 py-3.5 last:border-b-0 hover:bg-muted/60"
             >
               <div className="min-w-0">
                 <p className="truncate text-base font-bold">{d.title}</p>
@@ -176,9 +177,8 @@ const Home = () => {
         </div>
       </section>
 
-      <aside className="flex max-w-full flex-[1_1_300px] flex-col gap-5">
-        <div className="rounded-xl border bg-card p-5">
-          <h2 className="mb-3.5 text-xl font-extrabold">Duel</h2>
+      <aside className="flex flex-col gap-5">
+        <Panel title="Duel">
           <div className="grid grid-cols-3 gap-2">
             {DUELS.map((d) => (
               <Link
@@ -207,7 +207,7 @@ const Home = () => {
           >
             Challenge a friend
           </Link>
-        </div>
+        </Panel>
         {elo !== null && <RankCard elo={elo} />}
       </aside>
     </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import IndexCard from "@/components/IndexCard";
 
 // missed answers have extra fields (picked, correct) but we only need these two
 type Card = { prompt: string; answer: string };
@@ -112,22 +113,19 @@ export default function Practice({
       <button
         type="button"
         onClick={() => setFlipped(!flipped)}
-        className="h-56 [perspective:1000px]"
+        className="flip-box h-56 text-left"
       >
         <div
           key={i + card.prompt}
-          className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] ${flipped ? "[transform:rotateY(180deg)]" : ""}`}
+          className={`flip-inner ${flipped ? "flipped" : ""}`}
         >
-          <div
-            className={`absolute inset-0 flex flex-col overflow-hidden rounded bg-paper text-left text-[#1c2026] shadow-[0_1px_0_var(--border),0_8px_20px_-12px_rgba(28,32,38,0.35)] transition-opacity delay-250 duration-0 [backface-visibility:hidden] ${flipped ? "opacity-0" : ""}`}
+          <IndexCard
+            className={`card-face transition-opacity delay-250 duration-0 ${flipped ? "opacity-0" : ""}`}
           >
-            <span className="h-9 shrink-0 border-b-2 border-rule" />
-            <span className="flex-1 bg-[repeating-linear-gradient(transparent_0_31px,var(--lines)_31px_32px)] px-6 pt-1 text-xl leading-8 font-bold">
-              {card.prompt}
-            </span>
-          </div>
+            <p className="text-xl leading-9 font-bold">{card.prompt}</p>
+          </IndexCard>
           <div
-            className={`absolute inset-0 flex items-center justify-center rounded bg-paper p-6 text-xl font-bold text-[#1c2026] shadow-[0_1px_0_var(--border),0_8px_20px_-12px_rgba(28,32,38,0.35)] transition-opacity delay-250 duration-0 [backface-visibility:hidden] [transform:rotateY(180deg)] ${flipped ? "" : "opacity-0"}`}
+            className={`index-card card-face card-back flex items-center justify-center p-6 text-xl font-bold transition-opacity delay-250 duration-0 ${flipped ? "" : "opacity-0"}`}
           >
             {card.answer}
           </div>
