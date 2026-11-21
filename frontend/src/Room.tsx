@@ -324,7 +324,9 @@ export default function Room() {
               <div key={p.uid}>
                 <div className="flex justify-between">
                   <span className="font-bold">
-                    {p.uid === me?.uid ? "You" : p.name}
+                    <Link to={`/u/${p.uid}`} className="hover:underline">
+                      {p.uid === me?.uid ? "You" : p.name}
+                    </Link>
                     {p.done && (
                       <span className="ml-2 text-sm font-semibold text-good">
                         done
@@ -359,7 +361,12 @@ export default function Room() {
             {board.map((b, i) => (
               <Fragment key={b.uid}>
                 <span className="text-muted-foreground">{i + 1}</span>
-                <span className="truncate font-bold">{b.name}</span>
+                <Link
+                  to={`/u/${b.uid}`}
+                  className="truncate font-bold hover:underline"
+                >
+                  {b.name}
+                </Link>
                 <span className="tabular-nums">{b.best}</span>
                 <span className="text-sm text-muted-foreground">
                   {b.games} {b.games === 1 ? "game" : "games"}

@@ -71,14 +71,20 @@ export default function Nav() {
                   </span>
                 </span>
               )}
-              {user.photoURL && (
-                <img
-                  src={user.photoURL}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  className="h-8 w-8 rounded-full"
-                />
-              )}
+              <Link to={`/u/${user.uid}`} aria-label="Your profile">
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="h-8 w-8 rounded-full"
+                  />
+                ) : (
+                  <span className="text-sm font-bold hover:underline">
+                    Profile
+                  </span>
+                )}
+              </Link>
               <Button variant="ghost" size="sm" onClick={() => signOut(auth)}>
                 Log out
               </Button>

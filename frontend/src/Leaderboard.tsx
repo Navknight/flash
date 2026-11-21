@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { useUser } from "./firebase";
 import { tier } from "@/lib/tier";
 import {
@@ -57,9 +58,12 @@ export default function Leaderboard() {
                   >
                     {i + 1}
                   </span>
-                  <span className="mt-1.5 max-w-full truncate px-2 text-lg font-extrabold">
+                  <Link
+                    to={`/u/${r.uid}`}
+                    className="mt-1.5 max-w-full truncate px-2 text-lg font-extrabold hover:underline"
+                  >
                     {r.name}
-                  </span>
+                  </Link>
                   <span className={`text-sm font-bold ${t.color}`}>
                     {t.name} {r.elo}
                   </span>
@@ -95,7 +99,9 @@ export default function Leaderboard() {
                         {i + 1}
                       </TableCell>
                       <TableCell className="font-bold">
-                        {r.name}
+                        <Link to={`/u/${r.uid}`} className="hover:underline">
+                          {r.name}
+                        </Link>
                         {mine && (
                           <span className="ml-2 text-sm font-semibold text-muted-foreground">
                             (you)
