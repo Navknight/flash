@@ -5,6 +5,13 @@
 
 import { randomInt } from "node:crypto";
 import type { Server } from "socket.io";
+import {
+  ANSWER_WINDOW_SEC,
+  comboMultiplier,
+  computeDamage,
+  createLimiter,
+  nextStreak,
+} from "./raidLogic.ts";
 
 type Db = {
   query: (text: string, params?: unknown[]) => Promise<{ rows: any[] }>;
@@ -17,7 +24,12 @@ type Ack = (response: Record<string, unknown>) => void;
 // Errors we are happy to show to the user. Anything else becomes a generic message.
 class UserError extends Error {}
 
-const ANSWER_WINDOW_SEC = 20; // time window for the speed bonus
+const MAX_PLAYERS = 30; // per raid
+
+// How often one user may do each thing (see createLimiter in raidLogic.ts)
+const createLimit = createLimiter(3, 60_000); // 3 new raids per minute
+const joinLimit = createLimiter(15, 10_000); // stops guessing raid codes
+const answerLimit = createLimiter(6, 3_000); // a human can't answer faster than this
 const BOSS_MODELS = ["dragon", "orc", "zombie"]; // must match the .glb files in frontend/public/models
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
 
@@ -26,6 +38,8 @@ type Runtime = {
   timer: ReturnType<typeof setTimeout>;
   // question currently shown to each player, with the server-side send time
   pending: Map<string, { questionId: number; sentAt: number }>;
+  // correct answers in a row, per player (kept in memory, resets if the server restarts)
+  streaks: Map<string, number>;
 };
 const runtimes = new Map<string, Runtime>();
 
@@ -142,6 +156,8 @@ function validateCreate(p: any) {
       throw new UserError(`Question ${n}: needs 2-6 choices`);
     if (!q.choices.every((c: unknown) => isStr(c, 1, 120)))
       throw new UserError(`Question ${n}: each choice must be 1-120 characters`);
+    if (new Set(q.choices.map((c: string) => c.trim().toLowerCase())).size !== q.choices.length)
+      throw new UserError(`Question ${n}: every choice must be different`);
     if (!isInt(q.correctIndex) || q.correctIndex < 0 || q.correctIndex >= q.choices.length)
       throw new UserError(`Question ${n}: pick a valid correct answer`);
     const base = q.baseDamage ?? 100;
@@ -271,7 +287,7 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
       () => finishRaid(code, "lost").catch(console.error),
       Math.max(0, endsAt - Date.now()),
     );
-    runtimes.set(code, { endsAt, timer, pending: new Map() });
+    runtimes.set(code, { endsAt, timer, pending: new Map(), streaks: new Map() });
   }
 
   // Everyone has answered every question and the boss is still alive: the raid is over.
@@ -311,6 +327,11 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
     const uid: string = socket.data.uid;
     const name: string = socket.data.name;
 
+    // throws a friendly error when this user is sending requests too fast
+    const throttle = (limit: (key: string) => boolean) => {
+      if (!limit(uid)) throw new UserError("You're doing that too fast. Slow down a little.");
+    };
+
     // Wraps a handler: runs it, sends { ok: true, ... } or { ok: false, error } to the ack callback.
     const handle =
       (fn: (payload: any) => Promise<Record<string, unknown>>) =>
@@ -330,6 +351,7 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
     socket.on(
       "raid:create",
       handle(async (p) => {
+        throttle(createLimit);
         const v = validateCreate(p);
 
         let code = "";
@@ -370,12 +392,20 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
     socket.on(
       "raid:join",
       handle(async (p) => {
+        throttle(joinLimit);
         const code = normCode(p?.code);
         const { rows } = await db.query(`select status from raids where code = $1`, [code]);
         if (!rows[0]) throw new UserError("Raid not found");
 
         // Finished raids are view-only: no joining, just the final snapshot.
         if (rows[0].status === "lobby" || rows[0].status === "active") {
+          const members = await db.query(
+            `select count(*)::int as n, coalesce(bool_or(uid = $2), false) as mine
+               from raid_participants where raid_code = $1`,
+            [code, uid],
+          );
+          if (members.rows[0].n >= MAX_PLAYERS && !members.rows[0].mine)
+            throw new UserError("This raid is full");
           const ins = await db.query(
             `insert into raid_participants (raid_code, uid, name) values ($1, $2, $3)
              on conflict (raid_code, uid) do update set left_at = null
@@ -489,7 +519,8 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
             r.choices.length === 3 &&
             r.prompt.length <= 300 &&
             r.answer.length <= 120 &&
-            r.choices.every((c: string) => c.trim() && c.length <= 120),
+            r.choices.every((c: string) => c.trim() && c.length <= 120) &&
+            new Set([r.answer, ...r.choices].map((c: string) => c.trim().toLowerCase())).size === 4,
         );
         const questions = shuffle(usable)
           .slice(0, 50)
@@ -553,6 +584,8 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
           done: false,
           question: { id: q.id, prompt: q.prompt, choices: q.choices },
           secondsAllowed: ANSWER_WINDOW_SEC,
+          streak: rt.streaks.get(uid) ?? 0,
+          multiplier: comboMultiplier(rt.streaks.get(uid) ?? 0),
         };
       }),
     );
@@ -560,6 +593,7 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
     socket.on(
       "raid:answer",
       handle(async (p) => {
+        throttle(answerLimit);
         const code = normCode(p?.code);
         const rt = runtimes.get(code);
         if (!rt || Date.now() >= rt.endsAt) throw new UserError("This raid is not active");
@@ -580,11 +614,15 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
         if (!q || p.choiceIndex < 0 || p.choiceIndex >= q.choices.length)
           throw new UserError("Invalid choice");
 
-        // Damage is computed on the server, from server-measured time.
+        // Damage is computed on the server, from server-measured time (rules: raidLogic.ts).
         const correct = p.choiceIndex === q.correct_index;
-        const elapsedSec = (Date.now() - open.sentAt) / 1000;
-        const speed = Math.max(0, 1 - elapsedSec / ANSWER_WINDOW_SEC);
-        const damage = correct ? Math.round(q.base_damage * (1 + 0.5 * speed)) : 0;
+        const streakBefore = rt.streaks.get(uid) ?? 0;
+        const damage = computeDamage({
+          correct,
+          baseDamage: q.base_damage,
+          elapsedSec: (Date.now() - open.sentAt) / 1000,
+          streakBefore,
+        });
 
         const ins = await db.query(
           `insert into raid_answers (raid_code, uid, question_id, choice_index, correct, damage)
@@ -593,6 +631,8 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
           [code, uid, open.questionId, p.choiceIndex, correct, damage],
         );
         if (!ins.rows.length) throw new UserError("You already answered that question");
+        const streak = nextStreak(correct, streakBefore);
+        rt.streaks.set(uid, streak);
 
         await db.query(
           `update raid_participants
@@ -602,11 +642,18 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
         );
 
         const hpRemaining = await hpOf(code);
-        nsp.to(room(code)).emit("raid:damage", { uid, name, damage, correct, hpRemaining });
+        nsp.to(room(code)).emit("raid:damage", { uid, name, damage, correct, hpRemaining, streak });
         if (hpRemaining <= 0) await finishRaid(code, "won");
         else await endIfAllDone(code);
 
-        return { correct, damage, correctIndex: q.correct_index, hpRemaining };
+        return {
+          correct,
+          damage,
+          correctIndex: q.correct_index,
+          hpRemaining,
+          streak,
+          multiplier: comboMultiplier(streak),
+        };
       }),
     );
   });

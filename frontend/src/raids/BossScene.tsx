@@ -78,11 +78,13 @@ function Placeholder() {
 function Boss({
   model,
   hitTick,
+  attackTick,
   dead,
   enraged,
 }: {
   model: BossModel;
   hitTick: number;
+  attackTick: number;
   dead: boolean;
   enraged: boolean;
 }) {
@@ -93,6 +95,7 @@ function Boss({
   const jolt = useRef(0);
   const fall = useRef(0);
   const fallMode = useRef(false);
+  const lunge = useRef(0);
 
   // private copy of the model, scaled to a fixed height and standing on the floor
   const { root, scale, offset, mats } = useMemo(() => {
@@ -134,13 +137,21 @@ function Boss({
     () =>
       names.find((n) => /idle|stand|breath|hover|fly/i.test(n)) ??
       names.find(
-        (n) => !/death|die|dead|hit|hurt|damage|attack|bite|slash|punch/i.test(n),
+        (n) => !/death|die|dead|hit|hurt|damage|attack|bite|slash|punch|roar|claw|headbutt|swipe|scream/i.test(n),
       ) ??
       names[0],
     [names],
   );
   const hitName = names.find((n) => /hit|hurt|damage|react|flinch/i.test(n));
   const deathName = names.find((n) => /death|die|dead/i.test(n));
+  // every clip that looks like an attack (dragon: Attack and Attack2, orc: Punch and Weapon)
+  const attackNames = useMemo(
+    () =>
+      names.filter((n) =>
+        /attack|bite|slash|punch|headbutt|swipe|roar|scream|claw|weapon/i.test(n),
+      ),
+    [names],
+  );
 
   // handy when a model behaves oddly: open the browser console (F12) to see its clips
   useEffect(() => {
@@ -158,13 +169,20 @@ function Boss({
   // after the hit reaction finishes, go back to idling
   useEffect(() => {
     const onFinished = (e: { action: THREE.AnimationAction }) => {
-      if (dead || !hitName || e.action !== actions[hitName]) return;
+      const finished = e.action.getClip().name;
+      if (dead || (finished !== hitName && !attackNames.includes(finished))) return;
       const idle = idleName ? actions[idleName] : null;
       idle?.reset().fadeIn(0.2).play();
     };
     mixer.addEventListener("finished", onFinished);
     return () => mixer.removeEventListener("finished", onFinished);
-  }, [mixer, actions, hitName, idleName, dead]);
+  }, [mixer, actions, hitName, attackNames, idleName, dead]);
+
+  // enraged phase: the boss moves faster
+  useEffect(() => {
+    const idle = idleName ? actions[idleName] : null;
+    if (idle) idle.timeScale = enraged ? 1.5 : 1;
+  }, [enraged, actions, idleName]);
 
   // got hit
   useEffect(() => {
@@ -178,6 +196,22 @@ function Boss({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hitTick]);
+
+  // someone missed: the boss strikes back (attack clip if the model has one, plus a lunge)
+  useEffect(() => {
+    if (attackTick === 0 || dead) return;
+    lunge.current = 1;
+    // pick one of the attack clips at random so the boss doesn't repeat itself
+    const clip = attackNames.length
+      ? attackNames[Math.floor(Math.random() * attackNames.length)]
+      : undefined;
+    const attack = clip ? actions[clip] : null;
+    if (attack) {
+      (idleName ? actions[idleName] : null)?.fadeOut(0.1);
+      attack.reset().setLoop(THREE.LoopOnce, 1).fadeIn(0.1).play();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attackTick]);
 
   // died
   useEffect(() => {
@@ -203,7 +237,9 @@ function Boss({
 
     const g = group.current;
     if (!g) return;
-    g.position.z = BOSS_Z - jolt.current * 0.35;
+    lunge.current = Math.max(0, lunge.current - dt * 2.2);
+    g.position.z =
+      BOSS_Z - jolt.current * 0.35 + Math.sin(lunge.current * Math.PI) * 0.7;
     if (fallMode.current) {
       fall.current = Math.min(1, fall.current + dt * 1.1);
       g.rotation.z = fall.current * 1.4;
@@ -418,6 +454,9 @@ export default function BossScene({
   myUid,
 }: Props) {
   const [hitTick, setHitTick] = useState(0);
+  const [attackTick, setAttackTick] = useState(0);
+  const [red, setRed] = useState(0); // red screen flash when I miss
+  const [white, setWhite] = useState(0); // white flash when the boss dies
   const [shots, setShots] = useState<Shot[]>([]);
   const [numbers, setNumbers] = useState<Num[]>([]);
   const shake = useRef(0);
@@ -466,6 +505,10 @@ export default function BossScene({
     if (shot.hit) {
       setHitTick((t) => t + 1);
       shake.current = Math.min(0.5, 0.2 + shot.damage / 600);
+    } else {
+      setAttackTick((t) => t + 1); // a miss: the boss strikes back
+      shake.current = Math.max(shake.current, 0.25);
+      if (shot.mine) setRed(0.55);
     }
     setNumbers((n) => [
       ...n,
@@ -483,8 +526,23 @@ export default function BossScene({
     [],
   );
 
+  // The flashes jump to full strength and then fade out on their own (see the CSS transition below)
+  useEffect(() => {
+    if (red === 0) return;
+    const t = setTimeout(() => setRed(0), 80);
+    return () => clearTimeout(t);
+  }, [red]);
+  useEffect(() => {
+    if (dead) setWhite(0.85);
+  }, [dead]);
+  useEffect(() => {
+    if (white === 0) return;
+    const t = setTimeout(() => setWhite(0), 80);
+    return () => clearTimeout(t);
+  }, [white]);
+
   return (
-    <div className="isolate h-[340px] w-full overflow-hidden rounded-lg border bg-black md:h-[600px]">
+    <div className="relative isolate h-[340px] w-full overflow-hidden rounded-lg border bg-black md:h-[600px]">
       <Canvas
         camera={{ position: [0, CAM.y, CAM.z], fov: CAM.fov }}
         dpr={[1, 1.75]}
@@ -520,6 +578,7 @@ export default function BossScene({
             <Boss
               model={model}
               hitTick={hitTick}
+              attackTick={attackTick}
               dead={dead}
               enraged={enraged}
             />
@@ -544,6 +603,33 @@ export default function BossScene({
 
         <Rig shake={shake} />
       </Canvas>
+
+      {/* screen effects on top of the 3D scene */}
+      {enraged && !dead && (
+        <div
+          className="pointer-events-none absolute inset-0 animate-pulse"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, transparent 55%, rgba(220,30,30,0.35) 100%)",
+          }}
+        />
+      )}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          opacity: red,
+          transition: red === 0 ? "opacity 700ms ease-out" : "none",
+          background:
+            "radial-gradient(ellipse at center, transparent 35%, rgba(220,30,30,0.9) 100%)",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute inset-0 bg-white"
+        style={{
+          opacity: white,
+          transition: white === 0 ? "opacity 900ms ease-out" : "none",
+        }}
+      />
     </div>
   );
 }

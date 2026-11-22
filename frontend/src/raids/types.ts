@@ -30,6 +30,8 @@ export type NextResult = {
   done: boolean;
   question?: Question;
   secondsAllowed?: number;
+  streak?: number; // correct answers in a row
+  multiplier?: number; // damage multiplier of your next hit
 };
 
 export type AnswerResult = {
@@ -37,6 +39,8 @@ export type AnswerResult = {
   damage: number;
   correctIndex: number;
   hpRemaining: number;
+  streak: number;
+  multiplier: number;
 };
 
 export type FeedItem = {
@@ -45,6 +49,7 @@ export type FeedItem = {
   name: string;
   damage: number;
   correct: boolean;
+  streak: number;
 };
 
 export type EndInfo = { result: "won" | "lost"; leaderboard: Player[] };

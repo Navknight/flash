@@ -187,8 +187,9 @@ export default function CreateRaid({ onCreate, onCancel, onImportDeck }: Props) 
             </label>
           </div>
           <p className="text-xs text-muted-foreground">
-            Each correct answer deals about 100-150 damage, depending on how
-            fast it is. Pick an HP your group can realistically beat.
+            Each correct answer deals about 100-150 damage depending on speed,
+            and up to 225 with a combo of correct answers in a row. Pick an HP
+            your group can realistically beat.
           </p>
         </CardContent>
       </Card>

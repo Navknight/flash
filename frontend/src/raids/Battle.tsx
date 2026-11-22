@@ -43,6 +43,7 @@ export default function Battle({
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [combo, setCombo] = useState({ streak: 0, multiplier: 1 });
 
   const over = state.status === "won" || state.status === "lost";
 
@@ -58,6 +59,7 @@ export default function Battle({
     setBusy(true);
     try {
       const r = await next();
+      setCombo({ streak: r.streak ?? 0, multiplier: r.multiplier ?? 1 });
       if (r.done || !r.question) {
         setDone(true);
         setQuestion(null);
@@ -86,7 +88,9 @@ export default function Battle({
     setPicked(i);
     setError("");
     try {
-      setResult(await answer(question.id, i));
+      const r = await answer(question.id, i);
+      setResult(r);
+      setCombo({ streak: r.streak, multiplier: r.multiplier });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
       setPicked(null);
@@ -211,6 +215,12 @@ export default function Battle({
 
                 {!over && question && (
                   <>
+                    {combo.streak >= 2 && (
+                      <p className="text-sm font-semibold text-orange-400">
+                        🔥 Combo x{combo.streak} · next hit does x
+                        {combo.multiplier.toFixed(1)} damage
+                      </p>
+                    )}
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-base font-medium">{question.prompt}</p>
                       <span className="shrink-0 text-xs text-muted-foreground">
@@ -293,7 +303,10 @@ export default function Battle({
                     {f.uid === myUid ? "You" : f.name}
                   </span>{" "}
                   {f.correct ? (
-                    <span className="text-green-500">hit for {f.damage}</span>
+                    <span className="text-green-500">
+                      hit for {f.damage}
+                      {f.streak >= 3 && ` 🔥${f.streak}`}
+                    </span>
                   ) : (
                     <span className="text-muted-foreground">missed</span>
                   )}

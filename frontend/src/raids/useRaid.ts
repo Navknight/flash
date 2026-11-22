@@ -137,6 +137,7 @@ export function useRaid(uid: string | undefined) {
         damage: number;
         correct: boolean;
         hpRemaining: number;
+        streak: number;
       }) => {
         setState((st) =>
           st
@@ -164,6 +165,7 @@ export function useRaid(uid: string | undefined) {
               name: d.name,
               damage: d.damage,
               correct: d.correct,
+              streak: d.streak,
             },
             ...f,
           ].slice(0, 30),
