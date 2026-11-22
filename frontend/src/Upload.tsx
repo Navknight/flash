@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { auth } from "./firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Panel from "@/components/Panel";
 import {
   Table,
   TableBody,
@@ -193,19 +193,28 @@ export default function Upload() {
   };
 
   return (
-    <Card className="mx-auto mt-10 max-w-2xl">
-      <CardHeader>
-        <CardTitle>Upload a deck</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={submit} className="flex flex-col gap-3">
-          <Input name="title" placeholder="Title" maxLength={100} required />
-          <Input
-            name="subject"
-            placeholder="Subject (e.g. Operating Systems)"
-            maxLength={50}
-            required
-          />
+    <div className="mx-auto mt-10 max-w-3xl px-4 pb-16">
+      <h1 className="mb-6 text-4xl font-extrabold">Upload deck</h1>
+      <form onSubmit={submit} className="flex flex-col gap-5">
+        <Panel title="1. Details">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5 text-sm font-bold">
+              Title
+              <Input name="title" maxLength={100} required />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-bold">
+              Subject
+              <Input
+                name="subject"
+                placeholder="e.g. Operating Systems"
+                maxLength={50}
+                required
+              />
+            </label>
+          </div>
+        </Panel>
+
+        <Panel title="2. File">
           <Input
             name="file"
             type="file"
@@ -213,66 +222,72 @@ export default function Upload() {
             onChange={onFile}
             required
           />
+          <p className="mt-2 text-sm text-muted-foreground">
+            JSON, CSV or tab separated text. One card per line: prompt, answer,
+            and optionally 3 wrong answers.
+          </p>
+        </Panel>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+        {cards && (
+          <Panel title="3. Check">
+            <p className="mb-2 text-sm text-muted-foreground">
+              {cards.length} cards found. First {Math.min(5, cards.length)}:
+            </p>
 
-          {cards && (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted-foreground">
-                Found {cards.length} cards. Preview of the first{" "}
-                {Math.min(5, cards.length)}:
-              </p>
+            {problems.length > 0 && (
+              <ul className="mb-2 list-disc pl-5 text-sm text-destructive">
+                {problems.slice(0, 5).map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+                {problems.length > 5 && (
+                  <li>and {problems.length - 5} more problems.</li>
+                )}
+              </ul>
+            )}
 
-              {problems.length > 0 && (
-                <ul className="list-disc pl-5 text-sm text-red-500">
-                  {problems.slice(0, 5).map((p) => (
-                    <li key={p}>{p}</li>
-                  ))}
-                  {problems.length > 5 && (
-                    <li>and {problems.length - 5} more problems.</li>
-                  )}
-                </ul>
-              )}
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Prompt</TableHead>
-                    <TableHead>Answer</TableHead>
-                    <TableHead>Wrong options</TableHead>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Prompt</TableHead>
+                  <TableHead>Answer</TableHead>
+                  <TableHead>Wrong options</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cards.slice(0, 5).map((c, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="max-w-64 truncate">
+                        {String(c?.prompt ?? "")}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-48 truncate">
+                        {String(c?.answer ?? "")}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {c?.choices?.length
+                        ? "From file"
+                        : "Picked automatically"}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cards.slice(0, 5).map((c, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <div className="max-w-[16rem] truncate">
-                          {String(c?.prompt ?? "")}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="max-w-[12rem] truncate">
-                          {String(c?.answer ?? "")}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {c?.choices?.length ? "Provided" : "Picked automatically"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                ))}
+              </TableBody>
+            </Table>
+          </Panel>
+        )}
 
-          <Button
-            type="submit"
-            disabled={!cards || problems.length > 0 || submitting}
-          >
-            {submitting ? "Uploading..." : "Upload"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <Button
+          type="submit"
+          className="h-11 self-start px-8 text-base"
+          disabled={!cards || problems.length > 0 || submitting}
+        >
+          {submitting ? "Uploading..." : "Upload"}
+        </Button>
+      </form>
+    </div>
   );
 }
