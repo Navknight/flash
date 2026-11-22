@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import IndexCard from "@/components/IndexCard";
 
 // missed answers have extra fields (picked, correct) but we only need these two
 type Card = { prompt: string; answer: string };
@@ -58,7 +59,11 @@ export default function Practice({
     if (!card) return;
 
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key === " " || e.key === "Enter") && e.target instanceof HTMLButtonElement) return;
+      if (
+        (e.key === " " || e.key === "Enter") &&
+        e.target instanceof HTMLButtonElement
+      )
+        return;
 
       if (e.key === " ") {
         e.preventDefault();
@@ -98,7 +103,7 @@ export default function Practice({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm font-semibold text-muted-foreground">
           Card {i + 1}/{deck.length}
         </p>
         <Button variant="ghost" size="sm" onClick={reshuffle}>
@@ -108,19 +113,19 @@ export default function Practice({
       <button
         type="button"
         onClick={() => setFlipped(!flipped)}
-        className="h-48 [perspective:1000px]"
+        className="flip-box h-56 text-left"
       >
         <div
           key={i + card.prompt}
-          className={`relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d] ${flipped ? "[transform:rotateY(180deg)]" : ""}`}
+          className={`flip-inner ${flipped ? "flipped" : ""}`}
         >
-          <div
-            className={`absolute inset-0 flex items-center justify-center rounded-xl border bg-card p-6 text-lg transition-opacity delay-250 duration-0 [backface-visibility:hidden] ${flipped ? "opacity-0" : ""}`}
+          <IndexCard
+            className={`card-face transition-opacity delay-250 duration-0 ${flipped ? "opacity-0" : ""}`}
           >
-            {card.prompt}
-          </div>
+            <p className="text-xl leading-9 font-bold">{card.prompt}</p>
+          </IndexCard>
           <div
-            className={`absolute inset-0 flex items-center justify-center rounded-xl border bg-primary/10 p-6 text-lg transition-opacity delay-250 duration-0 [backface-visibility:hidden] [transform:rotateY(180deg)] ${flipped ? "" : "opacity-0"}`}
+            className={`index-card card-face card-back flex items-center justify-center p-6 text-xl font-bold transition-opacity delay-250 duration-0 ${flipped ? "" : "opacity-0"}`}
           >
             {card.answer}
           </div>
@@ -128,7 +133,7 @@ export default function Practice({
       </button>
 
       <p className="text-xs text-muted-foreground">
-        Space to flip · ← previous · Enter or → got it · M missed it
+        Space to flip, ← back, Enter or → got it, M missed it
       </p>
       <div className="flex gap-2">
         {i > 0 && (

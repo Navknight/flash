@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useUser } from "./firebase";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import RankCard from "@/components/RankCard";
+import Panel from "@/components/Panel";
 
 type Deck = {
   id: number;
@@ -20,9 +21,23 @@ const subjectColor = (subject: string) => {
   return `hsl(${(sum * 37) % 360} 60% 55%)`;
 };
 
+const DUELS = [
+  { name: "Easy", minutes: 15, color: "text-green-700 dark:text-green-400" },
+  {
+    name: "Medium",
+    minutes: 20,
+    color: "text-yellow-700 dark:text-yellow-400",
+  },
+  { name: "Hard", minutes: 25, color: "text-red-700 dark:text-red-400" },
+];
+
+const chip = (active: boolean) =>
+  `rounded-md border px-3.5 py-1 text-sm font-semibold ${active ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-muted"}`;
+
 const Home = () => {
   const user = useUser();
   const [decks, setDecks] = useState<Deck[]>([]);
+  const [elo, setElo] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -38,9 +53,22 @@ const Home = () => {
         return r.json();
       })
       .then(setDecks)
-      .catch(() => setError("Could not load decks. Refresh the page to try again."))
+      .catch(() =>
+        setError("Could not load decks. Refresh the page to try again."),
+      )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!user) return setElo(null);
+    user
+      .getIdToken()
+      .then((token) =>
+        fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } }),
+      )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me) => setElo(me?.elo ?? null));
+  }, [user]);
 
   // React concept: derived state. Do not store the filtered list in its own
   // useState, compute it from decks + query + subject. useMemo caches the
@@ -65,68 +93,124 @@ const Home = () => {
       (visible.length === 0
         ? decks.length
           ? "No decks match your search."
-          : "No decks yet. Upload the first one."
+          : "No decks yet."
         : "");
 
   return (
-    <div className="mx-auto mt-10 max-w-5xl px-4">
-      <div className="mb-6 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Decks</h1>
-          <p className="text-muted-foreground">
-            Pick a deck and race other students through it.
-          </p>
+    <div className="with-sidebar mx-auto mt-10 max-w-6xl px-4 pb-16">
+      <section className="min-w-0">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <h1 className="text-4xl font-extrabold">Decks</h1>
+          {user && (
+            <Button variant="outline" render={<Link to="/upload" />}>
+              Upload deck
+            </Button>
+          )}
         </div>
-        {user && <Button render={<Link to="/upload" />}>Upload a deck</Button>}
-      </div>
 
-      <div className="mb-4 flex flex-col gap-3">
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by title or author"
+          placeholder="Search decks"
+          aria-label="Search decks"
+          className="h-11 bg-card text-base"
         />
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setSubject(null)}>
-            <Badge variant={subject === null ? "default" : "secondary"}>All</Badge>
+        <div className="mt-3 mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSubject(null)}
+            className={chip(subject === null)}
+          >
+            All
           </button>
           {subjects.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setSubject(subject === s ? null : s)}
+              className={chip(subject === s)}
             >
-              <Badge variant={subject === s ? "default" : "secondary"}>{s}</Badge>
+              {s}
             </button>
           ))}
           {!loading && !error && (
             <span className="ml-auto text-sm text-muted-foreground">
-              {visible.length} of {decks.length} decks
+              {visible.length} decks
             </span>
           )}
         </div>
-      </div>
 
-<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-  {visible.map((d) => (
-    <Link
-      key={d.id}
-      to={`/room/${d.id}`}
-      className="rounded-xl border border-t-4 bg-card p-4 backdrop-blur-md shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-      style={{ borderTopColor: subjectColor(d.subject) }}
-    >
-      <p className="font-heading text-lg font-semibold">{d.title}</p>
-      <p className="text-sm text-muted-foreground">by {d.owner}</p>
-      <div className="mt-4 flex items-center justify-between">
-        <Badge variant="secondary">{d.subject}</Badge>
-        <span className="text-sm text-muted-foreground">{d.cards} cards</span>
-      </div>
-    </Link>
-  ))}
-</div>
-{status && <p className="py-8 text-center text-muted-foreground">{status}</p>}
-      </div>
-  
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="deck-row hidden border-b px-5 py-2.5 text-sm font-semibold text-muted-foreground sm:grid">
+            <span>Deck</span>
+            <span>Subject</span>
+            <span className="text-right">Cards</span>
+            <span />
+          </div>
+          {visible.map((d) => (
+            <div
+              key={d.id}
+              className="deck-row border-b px-5 py-3.5 last:border-b-0 hover:bg-muted/60"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-base font-bold">{d.title}</p>
+                <p className="text-sm text-muted-foreground">by {d.owner}</p>
+              </div>
+              <span className="hidden items-center gap-2 sm:flex">
+                <span
+                  className="size-2.5 shrink-0 rounded-sm"
+                  style={{ background: subjectColor(d.subject) }}
+                />
+                <span className="truncate">{d.subject}</span>
+              </span>
+              <span className="hidden text-right tabular-nums text-muted-foreground sm:block">
+                {d.cards}
+              </span>
+              <Button render={<Link to={`/room/${d.id}`} />}>Race</Button>
+            </div>
+          ))}
+          {status && (
+            <p className="px-5 py-8 text-center text-muted-foreground">
+              {status}
+            </p>
+          )}
+        </div>
+      </section>
+
+      <aside className="flex flex-col gap-5">
+        <Panel title="Duel">
+          <div className="grid grid-cols-3 gap-2">
+            {DUELS.map((d) => (
+              <Link
+                key={d.name}
+                to="/duels"
+                className="flex flex-col items-center rounded-lg border py-3 hover:bg-muted"
+              >
+                <span className="text-3xl leading-none font-light tabular-nums">
+                  {d.minutes}
+                </span>
+                <span className={`text-sm font-extrabold ${d.color}`}>
+                  {d.name}
+                </span>
+              </Link>
+            ))}
+          </div>
+          <p className="mt-2 mb-4 text-xs text-muted-foreground">
+            Time limit in minutes
+          </p>
+          <Button className="h-10 w-full" render={<Link to="/duels" />}>
+            Ranked match
+          </Button>
+          <Link
+            to="/duels"
+            className="mt-3 block text-center text-sm font-bold hover:underline"
+          >
+            Challenge a friend
+          </Link>
+        </Panel>
+        {elo !== null && <RankCard elo={elo} />}
+      </aside>
+    </div>
   );
 };
 

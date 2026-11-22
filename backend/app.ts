@@ -83,6 +83,77 @@ export const buildApp = () => {
     return rows;
   });
 
+  fastify.get<{ Params: { uid: string } }>(
+    "/api/users/:uid",
+    async (request, reply) => {
+      const { uid } = request.params;
+      const user = await pool.query(
+        "select uid, name, elo, created_at from users where uid = $1",
+        [uid],
+      );
+      if (user.rows.length === 0) {
+        return reply.code(404).send({ message: "No such player" });
+      }
+
+      const races = await pool.query(
+        `select count(*)::int as races,
+                coalesce(sum(total), 0)::int as questions,
+                coalesce(sum(correct), 0)::int as correct
+           from race_results where uid = $1`,
+        [uid],
+      );
+      const duels = await pool.query(
+        `select count(*)::int as games,
+                count(*) filter (where winner = $1)::int as wins,
+                count(*) filter (where winner is not null and winner <> $1)::int as losses,
+                count(*) filter (where winner is null)::int as draws
+           from matches where $1 in (player_a, player_b)`,
+        [uid],
+      );
+      const matches = await pool.query(
+        `select m.id, p.title as problem, p.difficulty, m.ranked, m.winner, m.created_at,
+                case when m.player_a = $1 then m.elo_a else m.elo_b end as delta,
+                o.uid as opponent_uid, o.name as opponent
+           from matches m
+           left join problems p on p.id = m.problem_id
+           join users o on o.uid = case when m.player_a = $1 then m.player_b else m.player_a end
+          where $1 in (m.player_a, m.player_b)
+          order by m.created_at desc
+          limit 10`,
+        [uid],
+      );
+      const decks = await pool.query(
+        `select d.id, d.title, d.subject, count(c.id)::int as cards
+           from decks d left join cards c on c.deck_id = d.id
+          where d.owner_uid = $1
+          group by d.id order by d.created_at desc`,
+        [uid],
+      );
+
+      const u = user.rows[0];
+      return {
+        uid: u.uid,
+        name: u.name,
+        elo: u.elo,
+        createdAt: u.created_at,
+        races: races.rows[0],
+        duels: duels.rows[0],
+        matches: matches.rows.map((m) => ({
+          id: m.id,
+          problem: m.problem,
+          difficulty: m.difficulty,
+          ranked: m.ranked,
+          opponent: m.opponent,
+          opponentUid: m.opponent_uid,
+          result: m.winner === null ? "draw" : m.winner === uid ? "win" : "loss",
+          delta: m.delta,
+          createdAt: m.created_at,
+        })),
+        decks: decks.rows,
+      };
+    },
+  );
+
   const deckBody = {
     type: "object",
     required: ["title", "subject", "cards"],

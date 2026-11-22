@@ -5,6 +5,8 @@ import { auth } from "./firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Practice from "./Practice";
+import IndexCard from "@/components/IndexCard";
+import Panel from "@/components/Panel";
 
 type PlayerInfo = {
   uid: string;
@@ -150,12 +152,12 @@ export default function Room() {
   const color = (opt: string) =>
     !result
       ? opt === picked
-        ? "ring-2 ring-primary"
+        ? "border-foreground"
         : ""
       : opt === result.answer
-        ? "bg-green-600 hover:bg-green-600"
+        ? "border-good bg-good/15"
         : opt === picked
-          ? "bg-red-600 hover:bg-red-600 animate-shake"
+          ? "border-destructive bg-destructive/10 animate-shake"
           : "opacity-50";
 
   if (error)
@@ -169,19 +171,26 @@ export default function Room() {
   const missed = history.filter((h) => !h.correct);
 
   return (
-    <div className="mx-auto mt-8 grid max-w-5xl gap-6 px-4 md:grid-cols-[1fr_260px]">
-      <Card>
-        {racing ? (
-          <>
-            <CardHeader className="flex flex-row justify-between text-sm text-muted-foreground">
-              <span>
-                Question {q.index + 1}/{snap.total}
+    <div className="with-sidebar mx-auto mt-8 max-w-6xl px-4 pb-16">
+      {racing ? (
+        <section>
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <p className="text-xl font-extrabold">
+              Question {q.index + 1}/{snap.total}
+            </p>
+            <div className="text-right">
+              <span
+                className={`text-5xl leading-none sm:text-6xl font-light tabular-nums ${
+                  secs <= 5 ? "animate-pulse text-red-500" : ""
+                }`}
+              >
+                {String(secs).padStart(2, "0")}
               </span>
-              <span className={`font-mono ${
-  secs <= 5 ? "animate-pulse text-red-500" : ""
-}`}>{secs}s</span>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+              <p className="text-xs text-muted-foreground">sec</p>
+            </div>
+          </div>
+          <IndexCard corner={q.index + 1}>
+            <div className="flex min-h-40 flex-col gap-4">
               {q.imageUrl && (
                 <img
                   src={q.imageUrl}
@@ -190,165 +199,180 @@ export default function Room() {
                   onError={(e) => (e.currentTarget.style.display = "none")}
                 />
               )}
-              <p className="text-xl font-semibold">{q.prompt}</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {q.options.map((opt, i) => (
-                  <Button
-                    key={opt}
-                    variant="secondary"
-                    className={`h-auto justify-start whitespace-normal py-3 ${color(opt)}`}
-                    onClick={() => pick(opt)}
-                  >
-                    <kbd className="mr-2 rounded border px-1.5 font-mono text-xs opacity-60">
-                      {i + 1}
-                    </kbd>
-                    {opt}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Tip: press 1-{q.options.length} to answer
-              </p>
-            </CardContent>
-          </>
-        ) : (
-          <>
-            <CardHeader>
-              <CardTitle>
-                {snap.phase === "race"
-                  ? me?.racing
-                    ? `Finished! Waiting for others... ${secs}s`
-                    : "Race in progress, you're in the next one"
-                  : snap.phase === "countdown"
-                    ? "Get Ready!"
-                    : "Waiting for another player..."}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-                {snap.phase === "countdown" && (
-                <p key={secs} className="py-6 text-center font-heading text-7xl font-bold text-primary animate-in zoom-in-50">
-                  {secs}
-                </p>
-              )}
-              {standings && (
-                <>
-                  <p className="text-sm text-muted-foreground">Last race</p>
-                  {standings.map((p, i) => (
-                    <div key={p.uid} className="flex justify-between">
-                      <span>
-                        {i + 1}. {p.name}
-                      </span>
-                      <span className="font-mono">
-                        {p.correct}/{snap.total} · {p.score}
-                      </span>
-                    </div>
-                  ))}
-                </>
-              )}
-
-              {history.length > 0 && (
-                <div className="mt-4 flex flex-col gap-2">
-                  <p className="text-sm text-muted-foreground">
-                    {missed.length === 0
-                      ? "Perfect run, nothing to review."
-                      : `Review: you missed ${missed.length} of ${history.length}`}
-                  </p>
-                  {/* show either the flashcards or the list, not both */}
-                  {practicing ? (
-                    <Practice
-                      cards={missed}
-                      onClose={() => setPracticing(false)}
-                    />
-                  ) : (
-                    missed.map((m, i) => (
-                      <div key={i} className="rounded border p-3 text-sm">
-                        <p className="font-medium">{m.prompt}</p>
-                        <p className="text-red-500">Your answer: {m.picked}</p>
-                        <p className="text-green-600">
-                          Correct answer: {m.answer}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                  {missed.length > 0 && !practicing && (
-                    <Button
-                      className="self-start"
-                      onClick={() => setPracticing(true)}
-                    >
-                      Practice mistakes
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              <Button
-                variant="outline"
-                className="mt-4 self-start"
-                render={<Link to="/" />}
-              >
-                Leave
-              </Button>
-              {snap.phase === "lobby" && snap.players.length === 1 && (
-                <Button
-                  className="mt-4 self-start"
-                  onClick={() => socket.current?.emit("solo")}
+              <p className="text-2xl leading-9 font-extrabold sm:text-3xl">{q.prompt}</p>
+            </div>
+          </IndexCard>
+          <div className="mt-5 flex flex-col gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {q.options.map((opt, i) => (
+                <button
+                  key={opt}
+                  type="button"
+                  className={`flex items-center gap-3.5 rounded-lg border border-input bg-card px-4 py-3.5 text-left text-base font-bold hover:bg-muted ${color(opt)}`}
+                  onClick={() => pick(opt)}
                 >
-                  Play solo
-                </Button>
-              )}
-            </CardContent>
-          </>
-        )}
-      </Card>
+                  <kbd className="grid size-6 shrink-0 place-items-center rounded-md border bg-muted text-xs font-extrabold text-muted-foreground">
+                    {i + 1}
+                  </kbd>
+                  {opt}
+                </button>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Press 1-{q.options.length} to answer
+            </p>
+          </div>
+        </section>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {snap.phase === "race"
+                ? me?.racing
+                  ? `Finished! Waiting for others... ${secs}s`
+                  : "Race in progress, you're in the next one"
+                : snap.phase === "countdown"
+                  ? "Get Ready!"
+                  : "Waiting for another player..."}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {snap.phase === "countdown" && (
+              <p
+                key={secs}
+                className="py-6 text-center font-heading text-7xl font-bold text-primary animate-in zoom-in-50"
+              >
+                {secs}
+              </p>
+            )}
+            {standings && (
+              <>
+                <p className="text-sm text-muted-foreground">Last race</p>
+                {standings.map((p, i) => (
+                  <div key={p.uid} className="flex justify-between">
+                    <span>
+                      {i + 1}. {p.name}
+                    </span>
+                    <span className="font-mono">
+                      {p.correct}/{snap.total} · {p.score}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Players</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {snap.players.map((p) => (
-            <div key={p.uid} className="flex flex-col gap-1">
-              <div className="flex justify-between text-sm">
-                <span>
-                  {p.name}
-                  {p.done ? " ✓" : ""}
-                </span>
-                <span className="font-mono">{p.score}</span>
-              </div>
-              {snap.phase === "race" && p.racing && (
-                <div className="h-1.5 rounded bg-muted">
-                  <div
-                    className="h-full rounded bg-primary transition-all"
-                    style={{ width: `${(100 * p.progress) / snap.total}%` }}
+            {history.length > 0 && (
+              <div className="mt-4 flex flex-col gap-2">
+                <p className="text-sm text-muted-foreground">
+                  {missed.length === 0
+                    ? "Perfect run, nothing to review."
+                    : `Review: you missed ${missed.length} of ${history.length}`}
+                </p>
+                {/* show either the flashcards or the list, not both */}
+                {practicing ? (
+                  <Practice
+                    cards={missed}
+                    onClose={() => setPracticing(false)}
                   />
-                </div>
-              )}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+                ) : (
+                  missed.map((m, i) => (
+                    <div key={i} className="rounded border p-3 text-sm">
+                      <p className="font-medium">{m.prompt}</p>
+                      <p className="text-red-500">Your answer: {m.picked}</p>
+                      <p className="text-green-600">
+                        Correct answer: {m.answer}
+                      </p>
+                    </div>
+                  ))
+                )}
+                {missed.length > 0 && !practicing && (
+                  <Button
+                    className="self-start"
+                    onClick={() => setPracticing(true)}
+                  >
+                    Practice mistakes
+                  </Button>
+                )}
+              </div>
+            )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Deck leaderboard</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm">
+            <Button
+              variant="outline"
+              className="mt-4 self-start"
+              render={<Link to="/" />}
+            >
+              Leave
+            </Button>
+            {snap.phase === "lobby" && snap.players.length === 1 && (
+              <Button
+                className="mt-4 self-start"
+                onClick={() => socket.current?.emit("solo")}
+              >
+                Play solo
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <aside className="flex flex-col gap-5">
+        <Panel title="Players">
+          <div className="flex flex-col gap-5">
+            {snap.players.map((p) => (
+              <div key={p.uid}>
+                <div className="flex justify-between">
+                  <span className="font-bold">
+                    <Link to={`/u/${p.uid}`} className="hover:underline">
+                      {p.uid === me?.uid ? "You" : p.name}
+                    </Link>
+                    {p.done && (
+                      <span className="ml-2 text-sm font-semibold text-good">
+                        done
+                      </span>
+                    )}
+                  </span>
+                  {snap.phase === "race" && !p.racing ? (
+                    <span className="text-muted-foreground">spectating</span>
+                  ) : (
+                    <span className="tabular-nums">{p.score}</span>
+                  )}
+                </div>
+                {snap.phase === "race" && p.racing && (
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-sm bg-muted">
+                    <div
+                      className={`h-full rounded-sm transition-all ${p.uid === me?.uid ? "bg-yellow-500" : "bg-foreground"}`}
+                      style={{ width: `${(100 * p.progress) / snap.total}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="Top scores">
           {board.length === 0 && (
-            <p className="text-muted-foreground">No runs yet, be the first.</p>
+            <p className="text-muted-foreground">No races on this deck yet.</p>
           )}
-          {board.map((b, i) => (
-            <div key={b.uid} className="flex justify-between">
-              <span>
-                {i + 1}. {b.name}
-              </span>
-              <span className="font-mono">
-                {b.best}{" "}
-                <span className="text-muted-foreground">· {b.games}g</span>
-              </span>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+          <div className="flex flex-col gap-2">
+            {board.map((b, i) => (
+              <div key={b.uid} className="flex items-baseline gap-3">
+                <span className="w-4 text-muted-foreground">{i + 1}</span>
+                <Link
+                  to={`/u/${b.uid}`}
+                  className="flex-1 truncate font-bold hover:underline"
+                >
+                  {b.name}
+                </Link>
+                <span className="tabular-nums">{b.best}</span>
+                <span className="text-sm text-muted-foreground">
+                  {b.games} {b.games === 1 ? "game" : "games"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </aside>
     </div>
   );
 }
