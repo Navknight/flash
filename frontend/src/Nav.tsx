@@ -64,7 +64,7 @@ export default function Nav() {
           {user ? (
             <>
               {me && t && (
-                <span className="hidden items-center gap-2 rounded-full border px-3 py-1 text-sm sm:flex">
+                <span className="hidden items-center gap-2 rounded-md border px-3 py-1 text-sm sm:flex">
                   <span className={`font-extrabold ${t.color}`}>{t.name}</span>
                   <span className="tabular-nums text-muted-foreground">
                     {me.elo}
@@ -77,7 +77,7 @@ export default function Nav() {
                     src={user.photoURL}
                     alt=""
                     referrerPolicy="no-referrer"
-                    className="h-8 w-8 rounded-full"
+                    className="h-8 w-8 rounded-md"
                   />
                 ) : (
                   <span className="text-sm font-bold hover:underline">

@@ -180,7 +180,7 @@ export default function Room() {
             </p>
             <div className="text-right">
               <span
-                className={`text-6xl leading-none font-light tabular-nums ${
+                className={`text-5xl leading-none sm:text-6xl font-light tabular-nums ${
                   secs <= 5 ? "animate-pulse text-red-500" : ""
                 }`}
               >
@@ -199,7 +199,7 @@ export default function Room() {
                   onError={(e) => (e.currentTarget.style.display = "none")}
                 />
               )}
-              <p className="text-3xl font-extrabold">{q.prompt}</p>
+              <p className="text-2xl leading-9 font-extrabold sm:text-3xl">{q.prompt}</p>
             </div>
           </IndexCard>
           <div className="mt-5 flex flex-col gap-4">
@@ -338,9 +338,9 @@ export default function Room() {
                   )}
                 </div>
                 {snap.phase === "race" && p.racing && (
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-sm bg-muted">
                     <div
-                      className={`h-full rounded-full transition-all ${p.uid === me?.uid ? "bg-yellow-500" : "bg-foreground"}`}
+                      className={`h-full rounded-sm transition-all ${p.uid === me?.uid ? "bg-yellow-500" : "bg-foreground"}`}
                       style={{ width: `${(100 * p.progress) / snap.total}%` }}
                     />
                   </div>

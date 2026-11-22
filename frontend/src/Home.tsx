@@ -32,7 +32,7 @@ const DUELS = [
 ];
 
 const chip = (active: boolean) =>
-  `rounded-full border px-3.5 py-1 text-sm font-semibold ${active ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-muted"}`;
+  `rounded-md border px-3.5 py-1 text-sm font-semibold ${active ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-muted"}`;
 
 const Home = () => {
   const user = useUser();

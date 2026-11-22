@@ -225,11 +225,11 @@ export default function Duels() {
                       className={`relative flex h-36 flex-col items-center justify-center rounded-xl bg-card hover:bg-muted ${on ? "border-2 border-foreground" : "border border-input"}`}
                     >
                       {on && (
-                        <span className="absolute top-3 right-3 grid size-6 place-items-center rounded-full bg-foreground text-xs font-black text-background">
+                        <span className="absolute top-3 right-3 grid size-6 place-items-center rounded-md bg-foreground text-xs font-black text-background">
                           ✓
                         </span>
                       )}
-                      <span className="text-5xl leading-none font-light tabular-nums">
+                      <span className="text-4xl leading-none sm:text-5xl font-light tabular-nums">
                         {d.minutes}
                       </span>
                       <span className="text-sm text-muted-foreground">
@@ -359,7 +359,7 @@ export default function Duels() {
     ...all.filter((p) => p.uid !== me),
   ];
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 p-4">
+    <div className="flex flex-col gap-3 p-4 md:h-[calc(100vh-4rem)]">
       <div className="flex flex-wrap items-center gap-6 rounded-xl border bg-card px-5 py-4">
         {players.map((p, i) => {
           const t = tier(p.elo);
@@ -381,9 +381,9 @@ export default function Duels() {
                   {p.passed}/{match?.total} tests
                 </span>
               </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="mt-2 h-1.5 overflow-hidden rounded-sm bg-muted">
                 <div
-                  className={`h-full rounded-full transition-all ${p.uid === me ? "bg-yellow-500" : "bg-sky-500"}`}
+                  className={`h-full rounded-sm transition-all ${p.uid === me ? "bg-yellow-500" : "bg-sky-500"}`}
                   style={{
                     width: `${(100 * p.passed) / (match?.total || 1)}%`,
                   }}
@@ -472,7 +472,7 @@ export default function Duels() {
               {pending ? "Running..." : "Submit"}
             </Button>
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden rounded-md border">
+          <div className="h-96 overflow-hidden rounded-xl border md:h-auto md:min-h-0 md:flex-1">
             <Editor
               theme={theme === "dark" ? "vs-dark" : "light"}
               language={language}
