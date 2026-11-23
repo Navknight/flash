@@ -22,6 +22,7 @@ export type RaidState = {
   endsAt: number | null; // epoch ms, null until the raid starts
   questionCount: number;
   players: Player[];
+  badges: RaidBadge[]; // loot of a won raid (empty while it is still running)
 };
 
 export type Question = { id: number; prompt: string; choices: string[] };
@@ -52,7 +53,11 @@ export type FeedItem = {
   streak: number;
 };
 
-export type EndInfo = { result: "won" | "lost"; leaderboard: Player[] };
+export type EndInfo = {
+  result: "won" | "lost";
+  leaderboard: Player[];
+  badges: RaidBadge[];
+};
 
 export type NewQuestion = {
   prompt: string;
@@ -91,4 +96,19 @@ export type DeckInfo = {
   subject: string;
   owner: string;
   cards: number;
+};
+
+export type BadgeId = "first_blood" | "mvp" | "perfect_run" | "slayer";
+export type RaidBadge = { uid: string; badge: BadgeId };
+
+// an emoji someone sent during the raid
+export type EmoteEvent = { id: number; uid: string; emote: string };
+
+// one row of the "top raiders" list
+export type RaidRanking = {
+  uid: string;
+  name: string;
+  damage: number;
+  raids: number;
+  wins: number;
 };

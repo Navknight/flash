@@ -5,6 +5,8 @@ import { useRaid } from "./raids/useRaid";
 import CreateRaid from "./raids/CreateRaid";
 import Battle from "./raids/Battle";
 import MyRaids from "./raids/MyRaids";
+import RaidLeaderboard from "./raids/RaidLeaderboard";
+import { BADGES } from "./raids/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -62,6 +64,7 @@ export default function BossRaid() {
   // ---------- results ----------
   if (state && end && showResults) {
     const won = end.result === "won";
+    const myBadges = end.badges.filter((b) => b.uid === user.uid);
     return (
       <div className="mx-auto mt-10 flex max-w-xl flex-col gap-4 px-4">
         <div className="text-center">
@@ -74,6 +77,26 @@ export default function BossRaid() {
               : `${state.bossName} had ${state.hpRemaining.toLocaleString()} HP left when the raid ended.`}
           </p>
         </div>
+        {myBadges.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Your loot</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {myBadges.map((b) => (
+                <div key={b.badge} className="flex items-center gap-3">
+                  <span className="text-3xl">{BADGES[b.badge].icon}</span>
+                  <div>
+                    <p className="font-medium">{BADGES[b.badge].name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {BADGES[b.badge].text}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardHeader>
             <CardTitle>Damage ranking</CardTitle>
@@ -85,7 +108,14 @@ export default function BossRaid() {
                 className="flex items-center justify-between border-b py-1 text-sm last:border-0"
               >
                 <span>
-                  {i + 1}. {p.uid === user.uid ? "You" : p.name}
+                  {i + 1}. {p.uid === user.uid ? "You" : p.name}{" "}
+                  {end.badges
+                    .filter((b) => b.uid === p.uid)
+                    .map((b) => (
+                      <span key={b.badge} title={BADGES[b.badge].name}>
+                        {BADGES[b.badge].icon}
+                      </span>
+                    ))}
                 </span>
                 <span className="text-muted-foreground">
                   {p.correct}/{p.answered} correct ·{" "}
@@ -114,6 +144,8 @@ export default function BossRaid() {
         answer={raid.answer}
         onLeave={raid.leave}
         onEnd={() => run(raid.endRaid)}
+        emotes={raid.emotes}
+        onEmote={raid.sendEmote}
       />
     );
   }
@@ -263,6 +295,12 @@ export default function BossRaid() {
         connected={raid.connected}
         load={raid.mine}
         onOpen={(c) => joinWith(c)}
+      />
+
+      <RaidLeaderboard
+        connected={raid.connected}
+        myUid={user.uid}
+        load={raid.leaderboard}
       />
     </div>
   );
