@@ -6,6 +6,7 @@ import Duels from "./Duels";
 import Nav from "./Nav";
 import Leaderboard from "./Leaderboard";
 import BossRaid from "./BossRaid";
+import Profile from "./Profile";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/duels" element={<Duels />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/boss-raids" element={<BossRaid />} />
+        <Route path="/u/:uid" element={<Profile />} />
       </Routes>
     </BrowserRouter>
   );
