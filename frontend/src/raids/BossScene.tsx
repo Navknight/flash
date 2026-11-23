@@ -466,7 +466,6 @@ function Rig({ shake }: { shake: React.RefObject<number> }) {
 }
 
 /** Scene */
-// credit for effects: @claude ai
 type Props = {
   model: BossModel;
   dead: boolean;
