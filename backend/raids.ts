@@ -1,15 +1,12 @@
-// backend/raids.ts
-// Boss Raid: cooperative study boss fight. Self-contained plug-in module.
-// Lives in its own Socket.io namespace ("/raids") and its own "raid_*" tables.
-// Node 22 type-stripping rules: no enums, no parameter properties, `import type` for types.
-
 import { randomInt } from "node:crypto";
 import type { Server } from "socket.io";
 import {
   ANSWER_WINDOW_SEC,
   comboMultiplier,
+  computeBadges,
   computeDamage,
   createLimiter,
+  EMOTES,
   nextStreak,
 } from "./raidLogic.ts";
 
@@ -26,21 +23,25 @@ class UserError extends Error {}
 
 const MAX_PLAYERS = 30; // per raid
 
-// How often one user may do each thing (see createLimiter in raidLogic.ts)
+// How often one user may do each thing
 const createLimit = createLimiter(3, 60_000); // 3 new raids per minute
 const joinLimit = createLimiter(15, 10_000); // stops guessing raid codes
 const answerLimit = createLimiter(6, 3_000); // a human can't answer faster than this
-const BOSS_MODELS = ["dragon", "orc", "zombie"]; // must match the .glb files in frontend/public/models
+const emoteLimit = createLimiter(4, 2_000); // no emoji spam
+const BOSS_MODELS = ["dragon", "orc", "zombie"]; // m.glb files in frontend/public/models
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
 
 type Runtime = {
   endsAt: number;
   timer: ReturnType<typeof setTimeout>;
+
   // question currently shown to each player, with the server-side send time
   pending: Map<string, { questionId: number; sentAt: number }>;
+  
   // correct answers in a row, per player (kept in memory, resets if the server restarts)
   streaks: Map<string, number>;
 };
+
 const runtimes = new Map<string, Runtime>();
 
 // Recovery after a restart must wait until the tables exist (matters on a fresh database).
@@ -49,8 +50,7 @@ const tablesReady = new Promise<void>((resolve) => {
   markTablesReady = resolve;
 });
 
-// ---------------------------------------------------------------- tables
-
+/** Tables */
 export async function setupRaidTables(db: Db) {
   await db.query(`create table if not exists raids (
     code text primary key,
@@ -108,12 +108,22 @@ export async function setupRaidTables(db: Db) {
     unique (raid_code, uid, question_id)
   )`);
 
+  // loot handed out when a raid is won
+  await db.query(`create table if not exists raid_badges (
+    raid_code text not null references raids(code) on delete cascade,
+    uid text not null references users(uid),
+    badge text not null,
+    awarded_at timestamptz not null default now(),
+    primary key (raid_code, uid, badge)
+  )`);
+
   markTablesReady();
 }
 
-// ---------------------------------------------------------------- helpers
+/** Helper functions */
 
 const isInt = (v: unknown): v is number => Number.isInteger(v);
+
 const isStr = (v: unknown, min: number, max: number): v is string =>
   typeof v === "string" && v.trim().length >= min && v.trim().length <= max;
 
@@ -139,9 +149,12 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function validateCreate(p: any) {
-  if (!isStr(p?.title, 1, 80)) throw new UserError("Title must be 1-80 characters");
-  if (!isStr(p?.bossName, 1, 60)) throw new UserError("Boss name must be 1-60 characters");
-  if (!BOSS_MODELS.includes(p?.bossModel)) throw new UserError("Pick a boss");
+  if (!isStr(p?.title, 1, 80)) 
+    throw new UserError("Title must be 1-80 characters");
+  if (!isStr(p?.bossName, 1, 60)) 
+    throw new UserError("Boss name must be 1-60 characters");
+  if (!BOSS_MODELS.includes(p?.bossModel)) 
+    throw new UserError("Pick a boss");
   if (!isInt(p?.bossHp) || p.bossHp < 100 || p.bossHp > 1_000_000)
     throw new UserError("Boss HP must be between 100 and 1,000,000");
   if (!isInt(p?.durationMin) || p.durationMin < 1 || p.durationMin > 1440)
@@ -182,21 +195,18 @@ function validateCreate(p: any) {
   };
 }
 
-// ---------------------------------------------------------------- module
-
+/**Module */
 export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
   const nsp = io.of("/raids");
   const room = (code: string) => `raid:${code}`;
 
-  // The auth middleware in server.ts only covers the default namespace,
-  // so this namespace needs its own.
+  // The auth middleware in server.ts only covers the default namespace, so this namespace needs its own.
   nsp.use(async (socket, next) => {
     try {
       const user = await verifyToken(socket.handshake.auth.token);
       socket.data.uid = user.uid;
       socket.data.name = user.name ?? "anon";
-      // users rows are normally created by GET /api/me; make sure one exists so the
-      // raid_* foreign keys can't fail. Never overwrites an existing row.
+
       await db.query(
         `insert into users (uid, name) values ($1, $2) on conflict (uid) do nothing`,
         [user.uid, socket.data.name],
@@ -247,6 +257,9 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
     const raid = rows[0];
     if (!raid) throw new UserError("Raid not found");
     const players = await leaderboard(code, raid.status === "lobby");
+    const badges = (
+      await db.query(`select uid, badge from raid_badges where raid_code = $1`, [code])
+    ).rows as { uid: string; badge: string }[];
     return {
       code: raid.code as string,
       title: raid.title as string,
@@ -259,8 +272,41 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
       endsAt: raid.started_ms ? Number(raid.started_ms) + raid.duration_sec * 1000 : null,
       questionCount: raid.question_count as number,
       players,
+      badges,
       me: players.find((p) => p.uid === uid) ?? null,
     };
+  }
+
+  // Works out who earned which badge (rules: computeBadges in raidLogic.ts) and saves them.
+  async function awardBadges(
+    code: string,
+    board: { uid: string; totalDamage: number; correct: number; answered: number }[],
+  ) {
+    const total = (
+      await db.query(`select count(*)::int as n from raid_questions where raid_code = $1`, [code])
+    ).rows[0].n as number;
+    // the first and the last correct answer of the raid (ids go up over time)
+    const first = (
+      await db.query(`select uid from raid_answers where raid_code = $1 and correct order by id limit 1`, [code])
+    ).rows[0];
+    const last = (
+      await db.query(`select uid from raid_answers where raid_code = $1 and correct order by id desc limit 1`, [code])
+    ).rows[0];
+
+    const badges = computeBadges({
+      players: board,
+      questionCount: total,
+      firstBloodUid: first?.uid ?? null,
+      slayerUid: last?.uid ?? null,
+    });
+    if (badges.length > 0)
+      await db.query(
+        `insert into raid_badges (raid_code, uid, badge)
+         select $1, x.uid, x.badge from jsonb_to_recordset($2::jsonb) as x(uid text, badge text)
+         on conflict do nothing`,
+        [code, JSON.stringify(badges)],
+      );
+    return badges;
   }
 
   // Safe to call more than once: only the first call flips the status.
@@ -276,10 +322,9 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
       [code, result],
     );
     if (rows.length === 0) return;
-    nsp.to(room(code)).emit("raid:ended", {
-      result,
-      leaderboard: await leaderboard(code),
-    });
+    const board = await leaderboard(code);
+    const badges = result === "won" ? await awardBadges(code, board) : [];
+    nsp.to(room(code)).emit("raid:ended", { result, leaderboard: board, badges });
   }
 
   function armTimer(code: string, endsAt: number) {
@@ -454,6 +499,47 @@ export function registerRaids(io: Server, db: Db, verifyToken: VerifyToken) {
         armTimer(code, endsAt);
         nsp.to(room(code)).emit("raid:started", { endsAt });
         return { endsAt };
+      }),
+    );
+
+    // top raiders over all finished raids: total boss damage and raids won
+    socket.on(
+      "raid:leaderboard",
+      handle(async () => {
+        const { rows } = await db.query(
+          `select p.uid, u.name, sum(p.total_damage)::int as damage,
+                  count(*)::int as raids,
+                  count(*) filter (where r.status = 'won')::int as wins
+             from raid_participants p
+             join raids r on r.code = p.raid_code
+             join users u on u.uid = p.uid
+            where r.status in ('won', 'lost')
+            group by p.uid, u.name
+            order by damage desc, wins desc
+            limit 10`,
+        );
+        return {
+          players: rows.map((r) => ({
+            uid: r.uid as string,
+            name: r.name as string,
+            damage: r.damage as number,
+            raids: r.raids as number,
+            wins: r.wins as number,
+          })),
+        };
+      }),
+    );
+
+    // a quick emoji reaction, shown above the sender's character for the whole party
+    socket.on(
+      "raid:emote",
+      handle(async (p) => {
+        throttle(emoteLimit);
+        const code = normCode(p?.code);
+        if (!EMOTES.includes(p?.emote)) throw new UserError("Unknown emote");
+        if (!socket.rooms.has(room(code))) throw new UserError("Join the raid first");
+        nsp.to(room(code)).emit("raid:emote", { uid, emote: p.emote });
+        return {};
       }),
     );
 

@@ -1,6 +1,4 @@
-// backend/raidLogic.ts
-// The game rules of Boss Raid as plain functions: no database, no sockets.
-// That keeps them easy to test (see raidLogic.test.ts) and easy to change in one place.
+// The game rules of Boss Raid as plain functions
 
 // How many seconds you get for the speed bonus on one question.
 export const ANSWER_WINDOW_SEC = 20;
@@ -11,7 +9,7 @@ export function comboMultiplier(streak: number): number {
   return 1 + Math.min(Math.max(streak, 0), 5) * 0.1;
 }
 
-// Your streak after answering: one more if you were right, back to 0 if you were wrong.
+// streak after answering: one more if you were right, back to 0 if you were wrong.
 export function nextStreak(correct: boolean, streakBefore: number): number {
   return correct ? streakBefore + 1 : 0;
 }
@@ -33,8 +31,7 @@ export function computeDamage(opts: {
   );
 }
 
-// Allows at most `max` calls per `windowMs` for each key (for example a user id).
-// Returns a function: call it with the key, it says true (allowed) or false (too fast).
+// Allows at most `max` calls per `windowMs` for each key (for example a user id). Returns a function: call it with the key, it says true (allowed) or false (too fast).
 export function createLimiter(
   max: number,
   windowMs: number,
@@ -52,4 +49,50 @@ export function createLimiter(
     hits.set(key, recent);
     return true;
   };
+}
+
+// The emoji a player can send during a raid. The server only accepts these (keep in sync with EMOTES in frontend).
+export const EMOTES = ["🔥", "👏", "😂", "💪", "😱"];
+
+export type BadgeId = "first_blood" | "mvp" | "perfect_run" | "slayer";
+
+// Badges handed out when a raid is WON:
+//   mvp         dealt the most damage (needs at least 1 damage)
+//   perfect_run answered every question, and every answer was correct
+//   first_blood landed the first correct answer of the raid
+//   slayer      landed the last correct answer, the one that killed the boss
+// One player can earn several. The caller finds first_blood / slayer in the database.
+export function computeBadges(input: {
+  players: {
+    uid: string;
+    totalDamage: number;
+    correct: number;
+    answered: number;
+  }[];
+  questionCount: number;
+  firstBloodUid: string | null;
+  slayerUid: string | null;
+}): { uid: string; badge: BadgeId }[] {
+  const out: { uid: string; badge: BadgeId }[] = [];
+
+  // strictly greater, so on a tie the player listed first keeps it
+  const top = input.players.reduce<(typeof input.players)[number] | null>(
+    (best, p) => (p.totalDamage > (best?.totalDamage ?? 0) ? p : best),
+    null,
+  );
+  if (top) out.push({ uid: top.uid, badge: "mvp" });
+
+  for (const p of input.players) {
+    if (
+      input.questionCount > 0 &&
+      p.answered === input.questionCount &&
+      p.correct === p.answered
+    )
+      out.push({ uid: p.uid, badge: "perfect_run" });
+  }
+
+  if (input.firstBloodUid)
+    out.push({ uid: input.firstBloodUid, badge: "first_blood" });
+  if (input.slayerUid) out.push({ uid: input.slayerUid, badge: "slayer" });
+  return out;
 }
