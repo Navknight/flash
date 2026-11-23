@@ -18,22 +18,18 @@ import {
 } from "@react-three/drei";
 import * as THREE from "three";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
-import type { BossModel, FeedItem, Player } from "./types";
+import type { BossModel, EmoteEvent, FeedItem, Player } from "./types";
 
-// ------------------------------------------------------------------
-// Tweak these if a model looks too big/small, faces away, or floats.
-// ------------------------------------------------------------------
 const BOSS_Z = -2; // how far back the boss stands
 const BOSSES: Record<
   BossModel,
   { file: string; height: number; rotY: number }
 > = {
-  // height = how tall the boss is drawn (scene units). rotY = turn it around (radians):
-  // 0 = faces the camera, Math.PI = flip it 180 degrees.
   dragon: { file: "/models/dragon.glb", height: 4.8, rotY: 0 },
   orc: { file: "/models/orc.glb", height: 3.6, rotY: 0 },
   zombie: { file: "/models/zombie.glb", height: 3.2, rotY: 0 },
 };
+
 // Camera framing. Raise lookY to move everything lower on screen, lower it to move things up.
 const CAM = { y: 3.4, z: 11.5, lookY: 0.8, fov: 45 };
 
@@ -46,9 +42,9 @@ type Shot = {
   mine: boolean;
 };
 type Num = { id: number; text: string; color: string; pos: Vec3 };
+type Pop = { id: number; emote: string; pos: Vec3 };
 
-// ------------------------------------------------------------------ boss
-
+/**Boss */
 // If a model file is missing or broken, show a placeholder instead of crashing the page.
 class Boundary extends Component<
   { fallback: ReactNode; children: ReactNode },
@@ -256,8 +252,7 @@ function Boss({
   );
 }
 
-// ------------------------------------------------------------------ party
-
+/**Party */
 function Hero({
   position,
   mine,
@@ -301,8 +296,7 @@ function Hero({
   );
 }
 
-// ------------------------------------------------------------------ effects
-
+/**Effects */
 function Fireball({
   shot,
   target,
@@ -391,6 +385,43 @@ function DamageNumber({
   );
 }
 
+// an emoji that floats up above a character and fades away
+function EmotePop({
+  pop,
+  onDone,
+}: {
+  pop: Pop;
+  onDone: (id: number) => void;
+}) {
+  const g = useRef<THREE.Group>(null);
+  const el = useRef<HTMLDivElement>(null);
+  const age = useRef(0);
+  const finished = useRef(false);
+
+  useFrame((_, dt) => {
+    age.current += dt;
+    if (g.current) g.current.position.y = pop.pos[1] + age.current * 0.7;
+    if (el.current) {
+      el.current.style.opacity = String(Math.max(0, 1 - age.current / 2));
+      el.current.style.transform = `scale(${Math.min(1, 0.4 + age.current * 3)})`;
+    }
+    if (age.current > 2 && !finished.current) {
+      finished.current = true;
+      onDone(pop.id);
+    }
+  });
+
+  return (
+    <group ref={g} position={pop.pos}>
+      <Html center zIndexRange={[6, 0]} style={{ pointerEvents: "none" }}>
+        <div ref={el} className="text-4xl">
+          {pop.emote}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
 function Torch({ position }: { position: Vec3 }) {
   const light = useRef<THREE.PointLight>(null);
   useFrame(({ clock }) => {
@@ -434,8 +465,8 @@ function Rig({ shake }: { shake: React.RefObject<number> }) {
   return null;
 }
 
-// ------------------------------------------------------------------ scene
-
+/** Scene */
+// credit for effects: @claude ai
 type Props = {
   model: BossModel;
   dead: boolean;
@@ -443,6 +474,7 @@ type Props = {
   feed: FeedItem[];
   players: Player[];
   myUid: string;
+  emotes: EmoteEvent[];
 };
 
 export default function BossScene({
@@ -452,6 +484,7 @@ export default function BossScene({
   feed,
   players,
   myUid,
+  emotes,
 }: Props) {
   const [hitTick, setHitTick] = useState(0);
   const [attackTick, setAttackTick] = useState(0);
@@ -459,7 +492,9 @@ export default function BossScene({
   const [white, setWhite] = useState(0); // white flash when the boss dies
   const [shots, setShots] = useState<Shot[]>([]);
   const [numbers, setNumbers] = useState<Num[]>([]);
+  const [pops, setPops] = useState<Pop[]>([]);
   const shake = useRef(0);
+  const seenEmote = useRef(emotes[emotes.length - 1]?.id ?? 0);
   const seen = useRef(feed[0]?.id ?? 0); // ignore anything that happened before we mounted
 
   const target = useMemo(
@@ -499,6 +534,29 @@ export default function BossScene({
       }),
     ]);
   }, [feed, slots, myUid]);
+
+  // an emote from a teammate pops up above their character
+  useEffect(() => {
+    const fresh = emotes.filter((e) => e.id > seenEmote.current);
+    if (fresh.length === 0) return;
+    seenEmote.current = fresh[fresh.length - 1].id;
+    setPops((list) => [
+      ...list,
+      ...fresh.map((e) => {
+        const p = slots.map.get(e.uid) ?? [0, 0, 2.5];
+        return {
+          id: e.id,
+          emote: e.emote,
+          pos: [p[0], p[1] + 1.9, p[2]] as Vec3,
+        };
+      }),
+    ]);
+  }, [emotes, slots]);
+
+  const removePop = useCallback(
+    (id: number) => setPops((list) => list.filter((x) => x.id !== id)),
+    [],
+  );
 
   const onImpact = useCallback((shot: Shot, at: THREE.Vector3) => {
     setShots((s) => s.filter((x) => x.id !== shot.id));
@@ -599,6 +657,9 @@ export default function BossScene({
         ))}
         {numbers.map((n) => (
           <DamageNumber key={n.id} num={n} onDone={removeNumber} />
+        ))}
+        {pops.map((p) => (
+          <EmotePop key={p.id} pop={p} onDone={removePop} />
         ))}
 
         <Rig shake={shake} />

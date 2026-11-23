@@ -1,15 +1,17 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EMOTES } from "./constants";
 import type {
   AnswerResult,
+  EmoteEvent,
   FeedItem,
   NextResult,
   Question,
   RaidState,
 } from "./types";
 
-// three.js is big, so it only downloads when a battle opens
+// only downloads when a battle opens
 const BossScene = lazy(() => import("./BossScene"));
 
 type Props = {
@@ -20,6 +22,8 @@ type Props = {
   answer: (questionId: number, choiceIndex: number) => Promise<AnswerResult>;
   onLeave: () => void;
   onEnd: () => void;
+  emotes: EmoteEvent[];
+  onEmote: (emote: string) => void;
 };
 
 const clock = (secs: number) =>
@@ -33,6 +37,8 @@ export default function Battle({
   answer,
   onLeave,
   onEnd,
+  emotes,
+  onEmote,
 }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [question, setQuestion] = useState<Question | null>(null);
@@ -98,6 +104,31 @@ export default function Battle({
       setBusy(false);
     }
   };
+
+  // keyboard: 1-6 or A-F pick an answer, Enter goes to the next question
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.ctrlKey || e.metaKey || e.altKey || over || busy) return;
+      if (result && e.key === "Enter") {
+        e.preventDefault(); // stops a focused button from also firing its own click
+        void load();
+        return;
+      }
+      if (!question || result) return;
+      const k = e.key.toLowerCase();
+      const i = /^[1-6]$/.test(k)
+        ? Number(k) - 1
+        : /^[a-f]$/.test(k)
+          ? k.charCodeAt(0) - 97
+          : -1;
+      if (i >= 0 && i < question.choices.length) void pick(i);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question, result, busy, over]);
 
   const secsLeft = state.endsAt
     ? Math.max(0, Math.ceil((state.endsAt - now) / 1000))
@@ -177,6 +208,7 @@ export default function Battle({
               feed={feed}
               players={state.players}
               myUid={myUid}
+              emotes={emotes}
             />
           </Suspense>
 
@@ -267,6 +299,12 @@ export default function Battle({
                       })}
                     </div>
 
+                    <p className="hidden text-xs text-muted-foreground md:block">
+                      Keys: 1-{question.choices.length} or A-
+                      {String.fromCharCode(64 + question.choices.length)} to
+                      answer, Enter for the next question
+                    </p>
+
                     {result && (
                       <div className="flex items-center justify-between">
                         <p
@@ -327,6 +365,25 @@ export default function Battle({
                   </span>
                   <span className="font-mono">{p.totalDamage}</span>
                 </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>React</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              {EMOTES.map((e) => (
+                <Button
+                  key={e}
+                  variant="outline"
+                  size="sm"
+                  className="text-lg"
+                  onClick={() => onEmote(e)}
+                >
+                  {e}
+                </Button>
               ))}
             </CardContent>
           </Card>
