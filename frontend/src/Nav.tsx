@@ -45,7 +45,7 @@ export default function Nav() {
           <NavLink to="/leaderboard" className={link}>
             Leaderboard
           </NavLink>
-          <NavLink to="/boss-raids" className={"link"}>
+          <NavLink to="/boss-raids" className={link}>
             Boss Raids
           </NavLink>
         </nav>

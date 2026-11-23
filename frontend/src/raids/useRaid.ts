@@ -4,10 +4,12 @@ import { auth } from "../firebase";
 import type {
   AnswerResult,
   CreateInput,
+  EmoteEvent,
   EndInfo,
   FeedItem,
   NewQuestion,
   NextResult,
+  RaidRanking,
   RaidState,
   RaidSummary,
 } from "./types";
@@ -16,6 +18,7 @@ type Reply = { ok: boolean; error?: string };
 
 const STORAGE_KEY = "raidCode"; // lets a page refresh drop you back into your raid
 let feedId = 0;
+let emoteId = 0;
 
 // Pass the signed-in user's uid. No uid = no socket (the server needs a login token).
 export function useRaid(uid: string | undefined) {
@@ -26,6 +29,7 @@ export function useRaid(uid: string | undefined) {
   const [state, setState] = useState<RaidState | null>(null);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [end, setEnd] = useState<EndInfo | null>(null);
+  const [emotes, setEmotes] = useState<EmoteEvent[]>([]);
 
   // emit + wait for the server's { ok, ... } acknowledgement, as a promise
   const call = useCallback(
@@ -57,7 +61,7 @@ export function useRaid(uid: string | undefined) {
     // opening a finished raid shows its results straight away
     setEnd(
       s.status === "won" || s.status === "lost"
-        ? { result: s.status, leaderboard: s.players }
+        ? { result: s.status, leaderboard: s.players, badges: s.badges }
         : null,
     );
   }, []);
@@ -66,6 +70,7 @@ export function useRaid(uid: string | undefined) {
     async (code: string) => {
       const res = await call<{ state: RaidState }>("raid:join", { code });
       setFeed([]);
+      setEmotes([]);
       applyState(res.state);
     },
     [call, applyState],
@@ -173,6 +178,10 @@ export function useRaid(uid: string | undefined) {
       },
     );
 
+    s.on("raid:emote", (e: { uid: string; emote: string }) =>
+      setEmotes((list) => [...list, { id: ++emoteId, ...e }].slice(-20)),
+    );
+
     s.on("raid:ended", (e: EndInfo) => {
       setEnd(e);
       setState((st) => (st ? { ...st, status: e.result } : st));
@@ -218,6 +227,18 @@ export function useRaid(uid: string | undefined) {
     [call],
   );
 
+  // fire and forget: a little emoji pops up above my character for everyone
+  const sendEmote = useCallback((emote: string) => {
+    socketRef.current?.emit("raid:emote", { code: codeRef.current, emote });
+  }, []);
+
+  // top raiders over all finished raids
+  const leaderboard = useCallback(
+    async () =>
+      (await call<{ players: RaidRanking[] }>("raid:leaderboard")).players,
+    [call],
+  );
+
   const next = useCallback(
     () => call<NextResult>("raid:next", { code: codeRef.current }),
     [call],
@@ -241,6 +262,7 @@ export function useRaid(uid: string | undefined) {
     setState(null);
     setEnd(null);
     setFeed([]);
+    setEmotes([]);
   }, []);
 
   return {
@@ -255,6 +277,9 @@ export function useRaid(uid: string | undefined) {
     endRaid,
     mine,
     deckQuestions,
+    leaderboard,
+    sendEmote,
+    emotes,
     next,
     answer,
     leave,
