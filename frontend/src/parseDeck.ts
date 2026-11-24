@@ -1,3 +1,4 @@
+//This file was created using the help of AI.
 export type Card = {
   prompt: string;
   answer: string;
